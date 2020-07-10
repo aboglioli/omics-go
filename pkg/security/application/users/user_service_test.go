@@ -1,25 +1,26 @@
-package security
+package users
 
 import (
 	"context"
 	"reflect"
 	"testing"
 
-	"omics/pkg/models"
+	"omics/pkg/common/models"
+	"omics/pkg/security/domain/token"
+	"omics/pkg/security/domain/users"
+	"omics/pkg/security/infrastructure/persistence"
+	"omics/pkg/security/mocks"
 )
 
 func buildUserService() *userService {
 	// UserRepository
-	userRepo := NewInMemUserRepository()
+	userRepo := persistence.NewInMemUserRepository()
 	// TokenService
-	enc := FakeTokenEncoder()
-	cache := FakeCache()
-	tokenServ := &tokenService{
-		cache: cache,
-		enc:   enc,
-	}
+	enc := mocks.FakeTokenEncoder()
+	cache := mocks.FakeCache()
+	tokenServ := token.NewTokenService(cache, enc)
 	// PasswordHasher
-	passwordHasher := FakePasswordHasher()
+	passwordHasher := mocks.FakePasswordHasher()
 	return &userService{
 		userRepo:       userRepo,
 		tokenServ:      tokenServ,
@@ -30,25 +31,25 @@ func buildUserService() *userService {
 func TestChangePassword(t *testing.T) {
 	tests := []struct {
 		name   string
-		user   *User
+		user   *users.User
 		userID models.ID
-		req    *ChangePasswordRequest
+		req    *ChangePasswordCommand
 		err    error
 	}{
 		{
 			"valid user",
-			&User{
-				ID:       1,
+			&users.User{
+				ID:       "U01",
 				Password: "#123#",
-				Role: Role{
+				Role: users.Role{
 					Code: "user",
-					Permissions: []Permission{
-						Permission{"CRUD", "users"},
+					Permissions: []users.Permission{
+						users.Permission{"CRUD", "users"},
 					},
 				},
 			},
-			1,
-			&ChangePasswordRequest{
+			"U01",
+			&ChangePasswordCommand{
 				OldPassword: "123",
 				NewPassword: "456",
 			},

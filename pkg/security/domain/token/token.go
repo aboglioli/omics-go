@@ -1,9 +1,9 @@
-package security
+package token
 
 import (
 	"context"
 
-	"omics/pkg/errors"
+	"omics/pkg/common/errors"
 
 	"github.com/google/uuid"
 )

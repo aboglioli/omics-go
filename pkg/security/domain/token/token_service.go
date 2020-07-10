@@ -1,17 +1,18 @@
-package security
+package token
 
 import (
 	"context"
 	"fmt"
 
-	"omics/pkg/cache"
-	"omics/pkg/errors"
+	"omics/pkg/common/cache"
+	"omics/pkg/common/errors"
+	"omics/pkg/security/domain/users"
 )
 
 type TokenService interface {
-	Create(ctx context.Context, user *User) (Token, error)
-	Validate(ctx context.Context, token Token) (*User, error)
-	Update(ctx context.Context, token Token, user *User) error
+	Create(ctx context.Context, user *users.User) (Token, error)
+	Validate(ctx context.Context, token Token) (*users.User, error)
+	Update(ctx context.Context, token Token, user *users.User) error
 	Invalidate(ctx context.Context, token Token) error
 }
 
@@ -20,7 +21,14 @@ type tokenService struct {
 	enc   TokenEncoder
 }
 
-func (s *tokenService) Create(ctx context.Context, user *User) (Token, error) {
+func NewTokenService(cache cache.Cache, tokenEncoder TokenEncoder) TokenService {
+	return &tokenService{
+		cache: cache,
+		enc:   tokenEncoder,
+	}
+}
+
+func (s *tokenService) Create(ctx context.Context, user *users.User) (Token, error) {
 	tokenID := NewTokenID()
 
 	token, err := s.enc.Encode(tokenID)
@@ -35,7 +43,7 @@ func (s *tokenService) Create(ctx context.Context, user *User) (Token, error) {
 	return token, nil
 }
 
-func (s *tokenService) Validate(ctx context.Context, token Token) (*User, error) {
+func (s *tokenService) Validate(ctx context.Context, token Token) (*users.User, error) {
 	tokenID, err := s.enc.Decode(token)
 	if err != nil {
 		return nil, errors.ErrTODO
@@ -46,14 +54,14 @@ func (s *tokenService) Validate(ctx context.Context, token Token) (*User, error)
 		return nil, errors.ErrTODO
 	}
 
-	if user, ok := rawUser.(*User); ok {
+	if user, ok := rawUser.(*users.User); ok {
 		return user, nil
 	}
 
 	return nil, errors.ErrTODO
 }
 
-func (s *tokenService) Update(ctx context.Context, token Token, user *User) error {
+func (s *tokenService) Update(ctx context.Context, token Token, user *users.User) error {
 	tokenID, err := s.enc.Decode(token)
 	if err != nil {
 		return errors.ErrTODO

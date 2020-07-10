@@ -1,9 +1,9 @@
-package security
+package users
 
 import (
 	"context"
 
-	"omics/pkg/models"
+	"omics/pkg/common/models"
 )
 
 type UserRepository interface {

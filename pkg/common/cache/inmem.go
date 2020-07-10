@@ -2,7 +2,7 @@ package cache
 
 import (
 	"context"
-	"omics/pkg/errors"
+	"omics/pkg/common/errors"
 )
 
 type inmemCache struct {

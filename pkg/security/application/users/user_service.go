@@ -1,13 +1,15 @@
-package security
+package users
 
 import (
 	"context"
 
-	"omics/pkg/errors"
-	"omics/pkg/models"
+	"omics/pkg/common/errors"
+	"omics/pkg/common/models"
+	"omics/pkg/security/domain/token"
+	"omics/pkg/security/domain/users"
 )
 
-type RegisterRequest struct {
+type RegisterCommand struct {
 	Username string `json:"username"`
 	Email    string `json:"email"`
 	Password string `json:"password"`
@@ -15,11 +17,11 @@ type RegisterRequest struct {
 	Lastname string `json:"lastname"`
 }
 
-func (req *RegisterRequest) Validate() error {
+func (cmd *RegisterCommand) Validate() error {
 	return nil
 }
 
-type LoginRequest struct {
+type LoginCommand struct {
 	UsernameOrEmail string `json:"username"`
 	Password        string `json:"password"`
 }
@@ -28,41 +30,41 @@ type LoginResponse struct {
 	AuthToken string `json:"auth_token"`
 }
 
-type UpdateRequest struct {
+type UpdateCommand struct {
 	Name     string `json:"name"`
 	Lastname string `json:"lastnaem"`
 }
 
-type ChangePasswordRequest struct {
+type ChangePasswordCommand struct {
 	OldPassword string `json:"old_password"`
 	NewPassword string `json:"new_password"`
 }
 
 type UserService interface {
-	GetByID(ctx context.Context, userID models.ID) (*User, error)
-	GetLoggedIn(ctx context.Context) (*User, error)
+	GetByID(ctx context.Context, userID models.ID) (*users.User, error)
+	GetLoggedIn(ctx context.Context) (*users.User, error)
 
-	Register(ctx context.Context, req *RegisterRequest) error
-	Login(ctx context.Context, req *LoginRequest) (*LoginResponse, error)
-	Update(ctx context.Context, userID models.ID, req *UpdateRequest) error
-	ChangePassword(ctx context.Context, userID string, req *ChangePasswordRequest) error
+	Register(ctx context.Context, cmd *RegisterCommand) error
+	Login(ctx context.Context, cmd *LoginCommand) (*LoginResponse, error)
+	Update(ctx context.Context, userID models.ID, cmd *UpdateCommand) error
+	ChangePassword(ctx context.Context, userID string, cmd *ChangePasswordCommand) error
 	Logout(ctx context.Context)
 }
 
 type userService struct {
-	roleRepo       RoleRepository
-	userRepo       UserRepository
-	tokenServ      TokenService
-	passwordHasher PasswordHasher
+	roleRepo       users.RoleRepository
+	userRepo       users.UserRepository
+	tokenServ      token.TokenService
+	passwordHasher users.PasswordHasher
 }
 
-func (s *userService) GetByID(ctx context.Context, userID models.ID) (*User, error) {
-	token, err := TokenFromContext(ctx)
+func (s *userService) GetByID(ctx context.Context, userID models.ID) (*users.User, error) {
+	t, err := token.TokenFromContext(ctx)
 	if err != nil {
 		return nil, errors.ErrTODO
 	}
 
-	user, err := s.tokenServ.Validate(ctx, token)
+	user, err := s.tokenServ.Validate(ctx, t)
 	if err != nil {
 		return nil, errors.ErrTODO
 	}
@@ -83,13 +85,13 @@ func (s *userService) GetByID(ctx context.Context, userID models.ID) (*User, err
 	return user, nil
 }
 
-func (s *userService) GetLoggedIn(ctx context.Context) (*User, error) {
-	token, err := TokenFromContext(ctx)
+func (s *userService) GetLoggedIn(ctx context.Context) (*users.User, error) {
+	t, err := token.TokenFromContext(ctx)
 	if err != nil {
 		return nil, errors.ErrTODO
 	}
 
-	user, err := s.tokenServ.Validate(ctx, token)
+	user, err := s.tokenServ.Validate(ctx, t)
 	if err != nil {
 		return nil, errors.ErrTODO
 	}
@@ -97,9 +99,9 @@ func (s *userService) GetLoggedIn(ctx context.Context) (*User, error) {
 	return user, nil
 }
 
-func (s *userService) Register(ctx context.Context, req *RegisterRequest) error {
-	if user, err := s.userRepo.FindByUsernameOrEmail(ctx, req.Username); user != nil || err == nil {
-		if user, err := s.userRepo.FindByUsernameOrEmail(ctx, req.Email); user != nil || err == nil {
+func (s *userService) Register(ctx context.Context, cmd *RegisterCommand) error {
+	if user, err := s.userRepo.FindByUsernameOrEmail(ctx, cmd.Username); user != nil || err == nil {
+		if user, err := s.userRepo.FindByUsernameOrEmail(ctx, cmd.Email); user != nil || err == nil {
 			return errors.ErrTODO
 		}
 	}
@@ -109,15 +111,15 @@ func (s *userService) Register(ctx context.Context, req *RegisterRequest) error 
 		return errors.ErrTODO
 	}
 
-	user := &User{
-		Username: req.Username,
-		Email:    req.Email,
-		Name:     req.Name,
-		Lastname: req.Lastname,
+	user := &users.User{
+		Username: cmd.Username,
+		Email:    cmd.Email,
+		Name:     cmd.Name,
+		Lastname: cmd.Lastname,
 		Role:     role,
 	}
 
-	hashedPassword, err := s.passwordHasher.Hash(req.Password)
+	hashedPassword, err := s.passwordHasher.Hash(cmd.Password)
 	if err != nil {
 		return errors.ErrTODO
 	}
@@ -131,33 +133,33 @@ func (s *userService) Register(ctx context.Context, req *RegisterRequest) error 
 	return nil
 }
 
-func (s *userService) Login(ctx context.Context, req *LoginRequest) (*LoginResponse, error) {
-	user, err := s.userRepo.FindByUsernameOrEmail(ctx, req.UsernameOrEmail)
+func (s *userService) Login(ctx context.Context, cmd *LoginCommand) (*LoginResponse, error) {
+	user, err := s.userRepo.FindByUsernameOrEmail(ctx, cmd.UsernameOrEmail)
 	if err != nil {
 		return nil, errors.ErrTODO
 	}
 
-	if !s.passwordHasher.Compare(user.Password, req.Password) {
+	if !s.passwordHasher.Compare(user.Password, cmd.Password) {
 		return nil, errors.ErrTODO
 	}
 
-	token, err := s.tokenServ.Create(ctx, user)
+	t, err := s.tokenServ.Create(ctx, user)
 	if err != nil {
 		return nil, errors.ErrTODO
 	}
 
 	return &LoginResponse{
-		AuthToken: string(token),
+		AuthToken: string(t),
 	}, nil
 }
 
-func (s *userService) Update(ctx context.Context, userID models.ID, req *UpdateRequest) error {
-	token, err := TokenFromContext(ctx)
+func (s *userService) Update(ctx context.Context, userID models.ID, cmd *UpdateCommand) error {
+	t, err := token.TokenFromContext(ctx)
 	if err != nil {
 		return errors.ErrTODO
 	}
 
-	user, err := s.tokenServ.Validate(ctx, token)
+	user, err := s.tokenServ.Validate(ctx, t)
 	if err != nil {
 		return errors.ErrTODO
 	}
@@ -175,8 +177,8 @@ func (s *userService) Update(ctx context.Context, userID models.ID, req *UpdateR
 		return errors.ErrTODO
 	}
 
-	user.Name = req.Name
-	user.Lastname = req.Lastname
+	user.Name = cmd.Name
+	user.Lastname = cmd.Lastname
 
 	if err := s.userRepo.Save(ctx, user); err != nil {
 		return errors.ErrTODO
@@ -185,13 +187,13 @@ func (s *userService) Update(ctx context.Context, userID models.ID, req *UpdateR
 	return nil
 }
 
-func (s *userService) ChangePassword(ctx context.Context, userID models.ID, req *ChangePasswordRequest) error {
-	token, err := TokenFromContext(ctx)
+func (s *userService) ChangePassword(ctx context.Context, userID models.ID, cmd *ChangePasswordCommand) error {
+	t, err := token.TokenFromContext(ctx)
 	if err != nil {
 		return errors.ErrTODO
 	}
 
-	user, err := s.tokenServ.Validate(ctx, token)
+	user, err := s.tokenServ.Validate(ctx, t)
 	if err != nil {
 		return errors.ErrTODO
 	}
@@ -209,11 +211,11 @@ func (s *userService) ChangePassword(ctx context.Context, userID models.ID, req 
 		return errors.ErrTODO
 	}
 
-	if !s.passwordHasher.Compare(user.Password, req.OldPassword) {
+	if !s.passwordHasher.Compare(user.Password, cmd.OldPassword) {
 		return errors.ErrTODO
 	}
 
-	hashedPassword, err := s.passwordHasher.Hash(req.NewPassword)
+	hashedPassword, err := s.passwordHasher.Hash(cmd.NewPassword)
 	if err != nil {
 		return errors.ErrTODO
 	}
@@ -228,12 +230,12 @@ func (s *userService) ChangePassword(ctx context.Context, userID models.ID, req 
 }
 
 func (s *userService) Logout(ctx context.Context) error {
-	token, err := TokenFromContext(ctx)
+	t, err := token.TokenFromContext(ctx)
 	if err != nil {
 		return errors.ErrTODO
 	}
 
-	if err := s.tokenServ.Invalidate(ctx, token); err != nil {
+	if err := s.tokenServ.Invalidate(ctx, t); err != nil {
 		return errors.ErrTODO
 	}
 

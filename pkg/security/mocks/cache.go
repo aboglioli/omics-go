@@ -1,8 +1,8 @@
-package security
+package mocks
 
 import (
 	"context"
-	"omics/pkg/errors"
+	"omics/pkg/common/errors"
 )
 
 type fakeCache struct {
