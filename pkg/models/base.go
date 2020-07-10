@@ -1,11 +1,14 @@
 package models
 
-import "time"
+import (
+	"strconv"
+	"time"
+)
 
 type ID int
 
-func (id ID) Str() string {
-	return string(id)
+func (id ID) String() string {
+	return strconv.Itoa(int(id))
 }
 
 type Base struct {

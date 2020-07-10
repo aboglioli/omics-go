@@ -2,52 +2,11 @@ package security
 
 import (
 	"context"
-	"fmt"
-	"omics/pkg/models"
 	"reflect"
 	"testing"
+
+	"omics/pkg/models"
 )
-
-type fakePasswordHasher struct{}
-
-func (ph *fakePasswordHasher) Hash(plainPassword string) (string, error) {
-	return fmt.Sprintf("#%s#", plainPassword), nil
-}
-
-func (ph *fakePasswordHasher) Compare(hashedPassword, plainPassword string) bool {
-	return hashedPassword == fmt.Sprintf("#%s#", plainPassword)
-}
-
-type fakeTokenService struct {
-	user *User
-}
-
-func (s *fakeTokenService) Create(ctx context.Context, user *User) (Token, error) {
-	return "token", nil
-}
-
-func (s *fakeTokenService) Validate(ctx context.Context, token Token) (*User, error) {
-	if token == "token" {
-		return s.user, nil
-	}
-	return nil, ErrNull
-}
-
-func (s *fakeTokenService) ValidateFromContext(ctx context.Context) (*User, error) {
-	token, ok := ctx.Value("authToken").(string)
-	if !ok {
-		return nil, ErrNull
-	}
-	return s.Validate(ctx, Token(token))
-}
-
-func (s *fakeTokenService) Invalidate(ctx context.Context, token Token) error {
-	return nil
-}
-
-func (s *fakeTokenService) InvalidateFromContext(ctx context.Context) error {
-	return nil
-}
 
 func TestChangePassword(t *testing.T) {
 	tests := []struct {
@@ -83,13 +42,15 @@ func TestChangePassword(t *testing.T) {
 			userRepo := &inmemUserRepository{
 				users: []*User{test.user},
 			}
-			passwordHasher := &fakePasswordHasher{}
+			passwordHasher := FakePasswordHasher()
+			tokenServ := FakeTokenService()
+			token, _ := tokenServ.Create(context.Background(), test.user)
 			serv := userService{
 				userRepo:       userRepo,
 				passwordHasher: passwordHasher,
-				tokenServ:      &fakeTokenService{test.user},
+				tokenServ:      tokenServ,
 			}
-			ctx := context.WithValue(context.Background(), "authToken", "token")
+			ctx := context.WithValue(context.Background(), "authToken", token.String())
 
 			err := serv.ChangePassword(ctx, test.userID, test.req)
 

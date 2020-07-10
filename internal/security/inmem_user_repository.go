@@ -2,6 +2,8 @@ package security
 
 import (
 	"context"
+
+	"omics/pkg/errors"
 	"omics/pkg/models"
 )
 
@@ -15,7 +17,7 @@ func (r *inmemUserRepository) FindByID(ctx context.Context, userID models.ID) (*
 			return user, nil
 		}
 	}
-	return nil, ErrNull
+	return nil, errors.ErrTODO
 }
 
 func (r *inmemUserRepository) FindByUsernameOrEmail(ctx context.Context, usernameOrEmail string) (*User, error) {
@@ -24,11 +26,11 @@ func (r *inmemUserRepository) FindByUsernameOrEmail(ctx context.Context, usernam
 			return user, nil
 		}
 	}
-	return nil, ErrNull
+	return nil, errors.ErrTODO
 }
 
 func (r *inmemUserRepository) Save(ctx context.Context, user *User) error {
-	if user.ID.Str() == "" {
+	if user.ID.String() == "" {
 		r.users = append(r.users, user)
 		return nil
 	}
@@ -40,5 +42,5 @@ func (r *inmemUserRepository) Save(ctx context.Context, user *User) error {
 		}
 	}
 
-	return ErrNull
+	return errors.ErrTODO
 }

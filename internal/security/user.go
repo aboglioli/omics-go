@@ -1,9 +1,10 @@
 package security
 
 import (
-	"omics/pkg/models"
 	"strings"
 	"time"
+
+	"omics/pkg/models"
 )
 
 // User is an aggregate root
