@@ -4,13 +4,16 @@ import (
 	"context"
 
 	"omics/pkg/errors"
+
+	"github.com/google/uuid"
 )
 
 type TokenID string
 type Token string
 
-func NewTokenID() string {
-	return "token-id"
+func NewTokenID() TokenID {
+	uuid := uuid.New().String()
+	return TokenID(uuid)
 }
 
 func TokenFromContext(ctx context.Context) (Token, error) {

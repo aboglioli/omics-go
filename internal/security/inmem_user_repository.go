@@ -8,14 +8,18 @@ import (
 )
 
 type inmemUserRepository struct {
-	users []*User
+	users map[models.ID]*User
+}
+
+func NewInMemUserRepository() *inmemUserRepository {
+	return &inmemUserRepository{
+		users: make(map[models.ID]*User),
+	}
 }
 
 func (r *inmemUserRepository) FindByID(ctx context.Context, userID models.ID) (*User, error) {
-	for _, user := range r.users {
-		if user.ID == userID {
-			return user, nil
-		}
+	if user, ok := r.users[userID]; ok {
+		return user, nil
 	}
 	return nil, errors.ErrTODO
 }
@@ -30,17 +34,6 @@ func (r *inmemUserRepository) FindByUsernameOrEmail(ctx context.Context, usernam
 }
 
 func (r *inmemUserRepository) Save(ctx context.Context, user *User) error {
-	if user.ID.String() == "" {
-		r.users = append(r.users, user)
-		return nil
-	}
-
-	for i, u := range r.users {
-		if u.ID == user.ID {
-			r.users[i] = user
-			return nil
-		}
-	}
-
-	return errors.ErrTODO
+	r.users[user.ID] = user
+	return nil
 }

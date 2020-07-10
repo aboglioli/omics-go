@@ -50,8 +50,8 @@ type UserService interface {
 }
 
 type userService struct {
-	userRepo       UserRepository
 	roleRepo       RoleRepository
+	userRepo       UserRepository
 	tokenServ      TokenService
 	passwordHasher PasswordHasher
 }

@@ -8,6 +8,25 @@ import (
 	"omics/pkg/models"
 )
 
+func buildUserService() *userService {
+	// UserRepository
+	userRepo := NewInMemUserRepository()
+	// TokenService
+	enc := FakeTokenEncoder()
+	cache := FakeCache()
+	tokenServ := &tokenService{
+		cache: cache,
+		enc:   enc,
+	}
+	// PasswordHasher
+	passwordHasher := FakePasswordHasher()
+	return &userService{
+		userRepo:       userRepo,
+		tokenServ:      tokenServ,
+		passwordHasher: passwordHasher,
+	}
+}
+
 func TestChangePassword(t *testing.T) {
 	tests := []struct {
 		name   string
@@ -39,17 +58,11 @@ func TestChangePassword(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			userRepo := &inmemUserRepository{
-				users: []*User{test.user},
+			serv := buildUserService()
+			if err := serv.userRepo.Save(context.Background(), test.user); err != nil {
+				t.Error(err)
 			}
-			passwordHasher := FakePasswordHasher()
-			tokenServ := FakeTokenService()
-			token, _ := tokenServ.Create(context.Background(), test.user)
-			serv := userService{
-				userRepo:       userRepo,
-				passwordHasher: passwordHasher,
-				tokenServ:      tokenServ,
-			}
+			token, _ := serv.tokenServ.Create(context.Background(), test.user)
 			ctx := context.WithValue(context.Background(), "authToken", token.String())
 
 			err := serv.ChangePassword(ctx, test.userID, test.req)
@@ -59,9 +72,12 @@ func TestChangePassword(t *testing.T) {
 					t.Errorf("\nExp:%v\nAct:%v", test.err, err)
 				}
 			} else {
-				changedPassword := userRepo.users[0].Password
-				shouldBe, _ := passwordHasher.Hash(test.req.NewPassword)
-				if changedPassword == test.req.NewPassword || changedPassword != shouldBe {
+				savedUser, err := serv.userRepo.FindByID(ctx, test.user.ID)
+				if err != nil {
+					t.Fatalf("User wasn't saved")
+				}
+
+				if savedUser.Password == test.req.NewPassword {
 					t.Errorf("Password wasn't hashed")
 				}
 			}
