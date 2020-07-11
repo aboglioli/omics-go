@@ -3,6 +3,6 @@ package events
 import "context"
 
 type EventBus interface {
-	Publish(ctx context.Context, event Event) error
-	Suscribe(ctx context.Context, eventName string) (<-chan Message, error)
+	Publish(ctx context.Context, code string, event interface{}) error
+	Subscribe(ctx context.Context, code string) (Subscription, error)
 }
