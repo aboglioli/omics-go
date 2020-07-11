@@ -9,12 +9,6 @@ type inmemMessage struct {
 	event interface{}
 }
 
-func NewInMemMessage(event interface{}) Message {
-	return inmemMessage{
-		event: event,
-	}
-}
-
 func (msg inmemMessage) Event() interface{} {
 	return msg.event
 }
