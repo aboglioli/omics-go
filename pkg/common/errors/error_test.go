@@ -76,7 +76,7 @@ func TestError(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			if !errors.Is(test.err1, test.err2) {
-				t.Errorf("\nExp: %v\nAct: %v", test.err2, test.err1)
+				t.Errorf("\nExp: %s\nAct: %s", test.err2, test.err1)
 			}
 		})
 	}

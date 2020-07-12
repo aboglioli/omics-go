@@ -8,10 +8,10 @@ import (
 
 func TestDisplay(t *testing.T) {
 	tests := []struct {
-		name            string
-		err             error
-		includeInternal bool
-		expected        error
+		name             string
+		aErr             error
+		aIncludeInternal bool
+		rErr             error
 	}{{
 		"raw error",
 		errors.New("code1"),
@@ -116,10 +116,10 @@ func TestDisplay(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			dispErr := Display(test.err, test.includeInternal)
+			rErr := Display(test.aErr, test.aIncludeInternal)
 
-			if !reflect.DeepEqual(test.expected, dispErr) {
-				t.Errorf("\nExp: %s\nAct: %s", test.expected, dispErr)
+			if !reflect.DeepEqual(test.rErr, rErr) {
+				t.Errorf("\nExp: %s\nAct: %s", test.rErr, rErr)
 			}
 		})
 	}

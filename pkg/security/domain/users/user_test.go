@@ -9,10 +9,10 @@ import (
 
 func TestPermissions(t *testing.T) {
 	tests := []struct {
-		role           string
-		rolePermission users.Permission
-		permission     string
-		res            bool
+		aRole           string
+		aRolePermission users.Permission
+		aPermission     string
+		rRes            bool
 	}{{
 		"user",
 		users.Permission{"CR", "module"},
@@ -59,14 +59,14 @@ func TestPermissions(t *testing.T) {
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
 			user := &users.User{
 				Role: users.Role{
-					Code:        test.role,
-					Permissions: []users.Permission{test.rolePermission},
+					Code:        test.aRole,
+					Permissions: []users.Permission{test.aRolePermission},
 				},
 			}
 
-			res := user.HasPermissions(test.permission, "module")
-			if res != test.res {
-				t.Errorf("\nExp:%v\nAct:%v", test.res, res)
+			rRes := user.HasPermissions(test.aPermission, "module")
+			if rRes != test.rRes {
+				t.Errorf("\nExp: %v\nAct: %v", test.rRes, rRes)
 			}
 		})
 	}
