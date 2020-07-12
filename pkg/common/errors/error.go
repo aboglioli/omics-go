@@ -5,17 +5,27 @@ import (
 	"fmt"
 )
 
-type ErrorType string
+type ErrorKind string
 
 const (
-	INTERNAL    ErrorType = "internal"
-	APPLICATION ErrorType = "application"
+	Raw      ErrorKind = "raw"
+	Internal ErrorKind = "internal"
+	App      ErrorKind = "application"
+	TODO     ErrorKind = "todo"
+	Test     ErrorKind = "test"
 )
+
+func (et ErrorKind) New() Error {
+	return Error{
+		kind:    et,
+		context: make(Context),
+	}
+}
 
 type Context map[string]interface{}
 
 type Error struct {
-	kind    ErrorType
+	kind    ErrorKind
 	code    string
 	path    string
 	status  int
@@ -24,12 +34,9 @@ type Error struct {
 	cause   error
 }
 
-func New(t ErrorType, c string) Error {
-	return Error{
-		kind:    t,
-		code:    c,
-		context: make(Context),
-	}
+func (e Error) Code(code string) Error {
+	e.code = code
+	return e
 }
 
 func (e Error) Path(path string) Error {
@@ -69,39 +76,25 @@ func (e Error) AddContext(k string, v interface{}) Error {
 	return e
 }
 
-func (e Error) Cause(cause error) Error {
+// error interface implementations
+func (e Error) Wrap(cause error) Error {
 	e.cause = cause
 	return e
 }
 
-// DisplayError
-type displayError struct {
-	Kind    ErrorType `json:"type,omitempty"`
-	Code    string    `json:"code,omitempty"`
-	Path    string    `json:"path,omitempty"`
-	Status  int       `json:"status,omitempty"`
-	Message string    `json:"message,omitempty"`
-	Context Context   `json:"context,omitempty"`
-	Cause   string    `json:"cause,omitempty"`
+func (e Error) Unwrap() error {
+	return e.cause
 }
 
-func (e Error) display() *displayError {
-	err := &displayError{
-		Kind:    e.kind,
-		Code:    e.code,
-		Path:    e.path,
-		Status:  e.status,
-		Message: e.message,
-		Context: e.context,
+func (e Error) Is(err error) bool {
+	if err, ok := err.(Error); ok {
+		return e.code == err.code
 	}
-	if e.cause != nil {
-		err.Cause = e.cause.Error()
-	}
-	return err
+	return false
 }
 
 func (e Error) Error() string {
-	str, err := json.Marshal(e.display())
+	str, err := json.Marshal(Display(e, true))
 	if err != nil {
 		return ""
 	}

@@ -3,8 +3,8 @@ package users
 import (
 	"context"
 
-	"omics/pkg/common/errors"
 	"omics/pkg/common/models"
+	"omics/pkg/security/domain/roles"
 	"omics/pkg/security/domain/token"
 	"omics/pkg/security/domain/users"
 )
@@ -52,7 +52,7 @@ type UserService interface {
 }
 
 type userService struct {
-	roleRepo       users.RoleRepository
+	roleRepo       roles.RoleRepository
 	userRepo       users.UserRepository
 	tokenServ      token.TokenService
 	passwordHasher users.PasswordHasher
@@ -61,25 +61,25 @@ type userService struct {
 func (s *userService) GetByID(ctx context.Context, userID models.ID) (*users.User, error) {
 	t, err := token.TokenFromContext(ctx)
 	if err != nil {
-		return nil, errors.ErrTODO
+		return nil, ErrNotFound.Wrap(err)
 	}
 
 	user, err := s.tokenServ.Validate(ctx, t)
 	if err != nil {
-		return nil, errors.ErrTODO
+		return nil, ErrNotFound.Wrap(err)
 	}
 
 	if !user.HasPermissions("R", "users") {
-		return nil, errors.ErrTODO
+		return nil, ErrNotFound.Wrap(err)
 	}
 
 	if !user.IsAdmin() && user.ID != userID {
-		return nil, errors.ErrTODO
+		return nil, ErrNotFound.Wrap(err)
 	}
 
 	user, err = s.userRepo.FindByID(ctx, userID)
 	if err != nil {
-		return nil, errors.ErrTODO
+		return nil, ErrNotFound.Wrap(err)
 	}
 
 	return user, nil
@@ -88,12 +88,12 @@ func (s *userService) GetByID(ctx context.Context, userID models.ID) (*users.Use
 func (s *userService) GetLoggedIn(ctx context.Context) (*users.User, error) {
 	t, err := token.TokenFromContext(ctx)
 	if err != nil {
-		return nil, errors.ErrTODO
+		return nil, ErrUnauthorized.Wrap(err)
 	}
 
 	user, err := s.tokenServ.Validate(ctx, t)
 	if err != nil {
-		return nil, errors.ErrTODO
+		return nil, ErrUnauthorized.Wrap(err)
 	}
 
 	return user, nil
@@ -102,13 +102,21 @@ func (s *userService) GetLoggedIn(ctx context.Context) (*users.User, error) {
 func (s *userService) Register(ctx context.Context, cmd *RegisterCommand) error {
 	if user, err := s.userRepo.FindByUsernameOrEmail(ctx, cmd.Username); user != nil || err == nil {
 		if user, err := s.userRepo.FindByUsernameOrEmail(ctx, cmd.Email); user != nil || err == nil {
-			return errors.ErrTODO
+			return ErrUsers.Code("register").Wrap(err)
 		}
 	}
 
 	role, err := s.roleRepo.FindByCode(ctx, "user")
 	if err != nil {
-		return errors.ErrTODO
+		return ErrUsers.Code("register").Wrap(err)
+	}
+
+	permissions := make([]users.Permission, 0)
+	for _, perm := range role.Permissions {
+		permissions = append(permissions, users.Permission{
+			Permission: perm.Permission,
+			Module:     perm.Module.Code,
+		})
 	}
 
 	user := &users.User{
@@ -116,18 +124,21 @@ func (s *userService) Register(ctx context.Context, cmd *RegisterCommand) error 
 		Email:    cmd.Email,
 		Name:     cmd.Name,
 		Lastname: cmd.Lastname,
-		Role:     role,
+		Role: users.Role{
+			Code:        role.Code,
+			Permissions: permissions,
+		},
 	}
 
 	hashedPassword, err := s.passwordHasher.Hash(cmd.Password)
 	if err != nil {
-		return errors.ErrTODO
+		return ErrUsers.Code("register").Wrap(err)
 	}
 
 	user.Password = hashedPassword
 
 	if err := s.userRepo.Save(ctx, user); err != nil {
-		return errors.ErrTODO
+		return ErrUsers.Code("register").Wrap(err)
 	}
 
 	return nil
@@ -136,16 +147,16 @@ func (s *userService) Register(ctx context.Context, cmd *RegisterCommand) error 
 func (s *userService) Login(ctx context.Context, cmd *LoginCommand) (*LoginResponse, error) {
 	user, err := s.userRepo.FindByUsernameOrEmail(ctx, cmd.UsernameOrEmail)
 	if err != nil {
-		return nil, errors.ErrTODO
+		return nil, ErrUsers.Code("login").Wrap(err)
 	}
 
 	if !s.passwordHasher.Compare(user.Password, cmd.Password) {
-		return nil, errors.ErrTODO
+		return nil, ErrUsers.Code("login").AddContext("password", "mismatch")
 	}
 
 	t, err := s.tokenServ.Create(ctx, user)
 	if err != nil {
-		return nil, errors.ErrTODO
+		return nil, ErrUsers.Code("login").Wrap(err)
 	}
 
 	return &LoginResponse{
@@ -154,76 +165,66 @@ func (s *userService) Login(ctx context.Context, cmd *LoginCommand) (*LoginRespo
 }
 
 func (s *userService) Update(ctx context.Context, userID models.ID, cmd *UpdateCommand) error {
-	t, err := token.TokenFromContext(ctx)
+	user, err := s.GetLoggedIn(ctx)
 	if err != nil {
-		return errors.ErrTODO
-	}
-
-	user, err := s.tokenServ.Validate(ctx, t)
-	if err != nil {
-		return errors.ErrTODO
+		return ErrUsers.Code("update").Wrap(err)
 	}
 
 	if !user.HasPermissions("U", "users") {
-		return errors.ErrTODO
+		return ErrUnauthorized
 	}
 
 	if !user.IsAdmin() && user.ID != userID {
-		return errors.ErrTODO
+		return ErrUnauthorized
 	}
 
 	user, err = s.userRepo.FindByID(ctx, userID)
 	if err != nil {
-		return errors.ErrTODO
+		return ErrNotFound.Wrap(err)
 	}
 
 	user.Name = cmd.Name
 	user.Lastname = cmd.Lastname
 
 	if err := s.userRepo.Save(ctx, user); err != nil {
-		return errors.ErrTODO
+		return ErrUsers.Code("update").Wrap(err)
 	}
 
 	return nil
 }
 
 func (s *userService) ChangePassword(ctx context.Context, userID models.ID, cmd *ChangePasswordCommand) error {
-	t, err := token.TokenFromContext(ctx)
+	user, err := s.GetLoggedIn(ctx)
 	if err != nil {
-		return errors.ErrTODO
-	}
-
-	user, err := s.tokenServ.Validate(ctx, t)
-	if err != nil {
-		return errors.ErrTODO
+		return ErrUsers.Code("change_password").Wrap(err)
 	}
 
 	if !user.HasPermissions("U", "users") {
-		return errors.ErrTODO
+		return ErrUnauthorized
 	}
 
 	if !user.IsAdmin() && user.ID != userID {
-		return errors.ErrTODO
+		return ErrUnauthorized
 	}
 
 	user, err = s.userRepo.FindByID(ctx, userID)
 	if err != nil {
-		return errors.ErrTODO
+		return ErrNotFound.Wrap(err)
 	}
 
 	if !s.passwordHasher.Compare(user.Password, cmd.OldPassword) {
-		return errors.ErrTODO
+		return ErrUsers.Code("change_password").AddContext("password", "mismatch")
 	}
 
 	hashedPassword, err := s.passwordHasher.Hash(cmd.NewPassword)
 	if err != nil {
-		return errors.ErrTODO
+		return ErrUsers.Code("change_password").Wrap(err)
 	}
 
 	user.Password = hashedPassword
 
 	if err := s.userRepo.Save(ctx, user); err != nil {
-		return errors.ErrTODO
+		return ErrUsers.Code("change_password").Wrap(err)
 	}
 
 	return nil
@@ -232,11 +233,11 @@ func (s *userService) ChangePassword(ctx context.Context, userID models.ID, cmd 
 func (s *userService) Logout(ctx context.Context) error {
 	t, err := token.TokenFromContext(ctx)
 	if err != nil {
-		return errors.ErrTODO
+		return ErrUnauthorized.Wrap(err)
 	}
 
 	if err := s.tokenServ.Invalidate(ctx, t); err != nil {
-		return errors.ErrTODO
+		return ErrUnauthorized.Wrap(err)
 	}
 
 	return nil

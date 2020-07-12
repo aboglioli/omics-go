@@ -1,64 +1,66 @@
-package users
+package users_test
 
 import (
 	"strconv"
 	"testing"
+
+	"omics/pkg/security/domain/users"
 )
 
 func TestPermissions(t *testing.T) {
 	tests := []struct {
 		role           string
-		rolePermission Permission
+		rolePermission users.Permission
 		permission     string
 		res            bool
 	}{{
 		"user",
-		Permission{"CR", "module"},
+		users.Permission{"CR", "module"},
 		"CR",
 		true,
 	}, {
 		"user",
-		Permission{"CR", "module"},
+		users.Permission{"CR", "module"},
 		"C",
 		true,
 	}, {
 		"user",
-		Permission{"CRUD", "module"},
+		users.Permission{"CRUD", "module"},
 		"UDC",
 		true,
 	}, {
 		"user",
-		Permission{"CRD", "module"},
+		users.Permission{"CRD", "module"},
 		"U",
 		false,
 	}, {
 		"user",
-		Permission{"CRD", "module"},
+		users.Permission{"CRD", "module"},
 		"CU",
 		false,
 	}, {
 		"user",
-		Permission{"CD", "module"},
+		users.Permission{"CD", "module"},
 		"DC",
 		true,
 	}, {
 		"user",
-		Permission{"CRUD", "module"},
+		users.Permission{"CRUD", "module"},
 		"CRUD",
 		true,
 	}, {
 		"admin",
-		Permission{"R", "module"},
+		users.Permission{"R", "module"},
 		"CRUD",
 		true,
 	}}
 
 	for i, test := range tests {
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
-			user := &User{
-				Role: Role{
+			user := &users.User{
+				Role: users.Role{
 					Code:        test.role,
-					Permissions: []Permission{test.rolePermission},
+					Permissions: []users.Permission{test.rolePermission},
 				},
 			}
 

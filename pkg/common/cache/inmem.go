@@ -2,7 +2,6 @@ package cache
 
 import (
 	"context"
-	"omics/pkg/common/errors"
 )
 
 type inmemCache struct {
@@ -19,7 +18,7 @@ func (c *inmemCache) Get(ctx context.Context, k string) (interface{}, error) {
 		return v, nil
 	}
 
-	return nil, errors.ErrTODO
+	return nil, ErrCache.Code("not_found")
 }
 
 func (c *inmemCache) Delete(ctx context.Context, k string) error {

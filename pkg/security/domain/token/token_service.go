@@ -1,3 +1,4 @@
+//go:generate mockgen -source $GOFILE -destination mocks/$GOFILE -package mocks
 package token
 
 import (
@@ -5,7 +6,6 @@ import (
 	"fmt"
 
 	"omics/pkg/common/cache"
-	"omics/pkg/common/errors"
 	"omics/pkg/security/domain/users"
 )
 
@@ -33,11 +33,11 @@ func (s *tokenService) Create(ctx context.Context, user *users.User) (Token, err
 
 	token, err := s.enc.Encode(tokenID)
 	if err != nil {
-		return "", errors.ErrTODO
+		return "", ErrToken.Code("create").Wrap(err)
 	}
 
 	if err := s.cache.Set(ctx, fmt.Sprintf("token:%s", tokenID), user); err != nil {
-		return "", errors.ErrTODO
+		return "", ErrToken.Code("create").Wrap(err)
 	}
 
 	return token, nil
@@ -46,33 +46,33 @@ func (s *tokenService) Create(ctx context.Context, user *users.User) (Token, err
 func (s *tokenService) Validate(ctx context.Context, token Token) (*users.User, error) {
 	tokenID, err := s.enc.Decode(token)
 	if err != nil {
-		return nil, errors.ErrTODO
+		return nil, ErrToken.Code("validate").Wrap(err)
 	}
 
 	rawUser, err := s.cache.Get(ctx, fmt.Sprintf("token:%s", tokenID))
 	if err != nil {
-		return nil, errors.ErrTODO
+		return nil, ErrToken.Code("validate").Wrap(err)
 	}
 
 	if user, ok := rawUser.(*users.User); ok {
 		return user, nil
 	}
 
-	return nil, errors.ErrTODO
+	return nil, ErrToken.Code("validate")
 }
 
 func (s *tokenService) Update(ctx context.Context, token Token, user *users.User) error {
 	tokenID, err := s.enc.Decode(token)
 	if err != nil {
-		return errors.ErrTODO
+		return ErrToken.Code("update").Wrap(err)
 	}
 
 	if _, err := s.cache.Get(ctx, fmt.Sprintf("token:%s", tokenID)); err != nil {
-		return errors.ErrTODO
+		return ErrToken.Code("update").Wrap(err)
 	}
 
 	if err := s.cache.Set(ctx, fmt.Sprintf("token:%s", tokenID), user); err != nil {
-		return errors.ErrTODO
+		return ErrToken.Code("update").Wrap(err)
 	}
 
 	return nil
@@ -81,11 +81,11 @@ func (s *tokenService) Update(ctx context.Context, token Token, user *users.User
 func (s *tokenService) Invalidate(ctx context.Context, token Token) error {
 	tokenID, err := s.enc.Decode(token)
 	if err != nil {
-		return errors.ErrTODO
+		return ErrToken.Code("invalidate").Wrap(err)
 	}
 
 	if err := s.cache.Delete(ctx, fmt.Sprintf("token:%s", tokenID)); err != nil {
-		return errors.ErrTODO
+		return ErrToken.Code("invalidate").Wrap(err)
 	}
 
 	return nil

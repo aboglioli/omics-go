@@ -17,6 +17,9 @@ type User struct {
 	Lastname  string
 	Role      Role
 	LastLogin time.Time
+	CreatedAt time.Time
+	UpdatedAt time.Time
+	DeletedAt *time.Time
 }
 
 type Role struct {

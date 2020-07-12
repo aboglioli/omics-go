@@ -1,6 +1,7 @@
+//go:generate mockgen -source $GOFILE -destination mocks/$GOFILE -package mocks
 package token
 
 type TokenEncoder interface {
-	Encode(tokenID TokenID) (Token, error)
-	Decode(token Token) (TokenID, error)
+	Encode(id TokenID) (Token, error)
+	Decode(t Token) (TokenID, error)
 }

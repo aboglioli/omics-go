@@ -3,8 +3,6 @@ package token
 import (
 	"context"
 
-	"omics/pkg/common/errors"
-
 	"github.com/google/uuid"
 )
 
@@ -20,7 +18,7 @@ func TokenFromContext(ctx context.Context) (Token, error) {
 	if tokenStr, ok := ctx.Value("authToken").(string); ok {
 		return Token(tokenStr), nil
 	}
-	return "", errors.ErrTODO
+	return "", ErrToken.Code("token_from_context")
 }
 
 func (t Token) String() string {
