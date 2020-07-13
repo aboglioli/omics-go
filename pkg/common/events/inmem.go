@@ -37,7 +37,7 @@ type inmemEventBus struct {
 	subscriptions []*inmemSubscription
 }
 
-func InMemEventBus() EventBus {
+func InMemEventBus() *inmemEventBus {
 	return &inmemEventBus{
 		subscriptions: make([]*inmemSubscription, 0),
 	}

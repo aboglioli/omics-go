@@ -113,31 +113,31 @@ func (mr *MockSubscriptionMockRecorder) Unsubscribe() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Unsubscribe", reflect.TypeOf((*MockSubscription)(nil).Unsubscribe))
 }
 
-// MockEventBus is a mock of EventBus interface.
-type MockEventBus struct {
+// MockEventPublisher is a mock of EventPublisher interface.
+type MockEventPublisher struct {
 	ctrl     *gomock.Controller
-	recorder *MockEventBusMockRecorder
+	recorder *MockEventPublisherMockRecorder
 }
 
-// MockEventBusMockRecorder is the mock recorder for MockEventBus.
-type MockEventBusMockRecorder struct {
-	mock *MockEventBus
+// MockEventPublisherMockRecorder is the mock recorder for MockEventPublisher.
+type MockEventPublisherMockRecorder struct {
+	mock *MockEventPublisher
 }
 
-// NewMockEventBus creates a new mock instance.
-func NewMockEventBus(ctrl *gomock.Controller) *MockEventBus {
-	mock := &MockEventBus{ctrl: ctrl}
-	mock.recorder = &MockEventBusMockRecorder{mock}
+// NewMockEventPublisher creates a new mock instance.
+func NewMockEventPublisher(ctrl *gomock.Controller) *MockEventPublisher {
+	mock := &MockEventPublisher{ctrl: ctrl}
+	mock.recorder = &MockEventPublisherMockRecorder{mock}
 	return mock
 }
 
 // EXPECT returns an object that allows the caller to indicate expected use.
-func (m *MockEventBus) EXPECT() *MockEventBusMockRecorder {
+func (m *MockEventPublisher) EXPECT() *MockEventPublisherMockRecorder {
 	return m.recorder
 }
 
 // Publish mocks base method.
-func (m *MockEventBus) Publish(ctx context.Context, code string, event interface{}) error {
+func (m *MockEventPublisher) Publish(ctx context.Context, code string, event interface{}) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Publish", ctx, code, event)
 	ret0, _ := ret[0].(error)
@@ -145,13 +145,36 @@ func (m *MockEventBus) Publish(ctx context.Context, code string, event interface
 }
 
 // Publish indicates an expected call of Publish.
-func (mr *MockEventBusMockRecorder) Publish(ctx, code, event interface{}) *gomock.Call {
+func (mr *MockEventPublisherMockRecorder) Publish(ctx, code, event interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Publish", reflect.TypeOf((*MockEventBus)(nil).Publish), ctx, code, event)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Publish", reflect.TypeOf((*MockEventPublisher)(nil).Publish), ctx, code, event)
+}
+
+// MockEventSubscriber is a mock of EventSubscriber interface.
+type MockEventSubscriber struct {
+	ctrl     *gomock.Controller
+	recorder *MockEventSubscriberMockRecorder
+}
+
+// MockEventSubscriberMockRecorder is the mock recorder for MockEventSubscriber.
+type MockEventSubscriberMockRecorder struct {
+	mock *MockEventSubscriber
+}
+
+// NewMockEventSubscriber creates a new mock instance.
+func NewMockEventSubscriber(ctrl *gomock.Controller) *MockEventSubscriber {
+	mock := &MockEventSubscriber{ctrl: ctrl}
+	mock.recorder = &MockEventSubscriberMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockEventSubscriber) EXPECT() *MockEventSubscriberMockRecorder {
+	return m.recorder
 }
 
 // Subscribe mocks base method.
-func (m *MockEventBus) Subscribe(ctx context.Context, code string) (events.Subscription, error) {
+func (m *MockEventSubscriber) Subscribe(ctx context.Context, code string) (events.Subscription, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Subscribe", ctx, code)
 	ret0, _ := ret[0].(events.Subscription)
@@ -160,7 +183,7 @@ func (m *MockEventBus) Subscribe(ctx context.Context, code string) (events.Subsc
 }
 
 // Subscribe indicates an expected call of Subscribe.
-func (mr *MockEventBusMockRecorder) Subscribe(ctx, code interface{}) *gomock.Call {
+func (mr *MockEventSubscriberMockRecorder) Subscribe(ctx, code interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Subscribe", reflect.TypeOf((*MockEventBus)(nil).Subscribe), ctx, code)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Subscribe", reflect.TypeOf((*MockEventSubscriber)(nil).Subscribe), ctx, code)
 }

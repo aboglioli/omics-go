@@ -13,7 +13,10 @@ type Subscription interface {
 	Unsubscribe() error
 }
 
-type EventBus interface {
+type EventPublisher interface {
 	Publish(ctx context.Context, code string, event interface{}) error
+}
+
+type EventSubscriber interface {
 	Subscribe(ctx context.Context, code string) (Subscription, error)
 }

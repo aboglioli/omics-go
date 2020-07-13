@@ -12,7 +12,7 @@ type User struct {
 	ID        models.ID
 	Username  string
 	Email     string
-	Password  string
+	password  string
 	Name      string
 	Lastname  string
 	Role      Role
@@ -52,4 +52,29 @@ func (u *User) HasPermissions(permission string, module string) bool {
 		}
 	}
 	return false
+}
+
+func (u *User) ComparePassword(plainPassword string, hasher PasswordHasher) bool {
+	return hasher.Compare(u.password, plainPassword)
+}
+
+func (u *User) SetPassword(plainPassword string, hasher PasswordHasher) error {
+	hashedPassword, err := hasher.Hash(plainPassword)
+	if err != nil {
+		return ErrUsers.Code("hash_password").Wrap(err)
+	}
+
+	u.password = hashedPassword
+
+	return nil
+}
+
+func (u *User) ChangePassword(oldPassword, newPassword string, hasher PasswordHasher) error {
+	if !u.ComparePassword(oldPassword, hasher) {
+		return ErrUsers.Code("password_mismatch")
+	}
+
+	u.SetPassword(newPassword, hasher)
+
+	return nil
 }

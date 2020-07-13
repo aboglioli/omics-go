@@ -35,6 +35,20 @@ func (m *MockUserRepository) EXPECT() *MockUserRepositoryMockRecorder {
 	return m.recorder
 }
 
+// NextID mocks base method.
+func (m *MockUserRepository) NextID() models.ID {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "NextID")
+	ret0, _ := ret[0].(models.ID)
+	return ret0
+}
+
+// NextID indicates an expected call of NextID.
+func (mr *MockUserRepositoryMockRecorder) NextID() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NextID", reflect.TypeOf((*MockUserRepository)(nil).NextID))
+}
+
 // FindByID mocks base method.
 func (m *MockUserRepository) FindByID(ctx context.Context, userID models.ID) (*users.User, error) {
 	m.ctrl.T.Helper()

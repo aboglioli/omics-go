@@ -120,6 +120,7 @@ func (s *userService) Register(ctx context.Context, cmd *RegisterCommand) error 
 	}
 
 	user := &users.User{
+		ID:       s.userRepo.NextID(),
 		Username: cmd.Username,
 		Email:    cmd.Email,
 		Name:     cmd.Name,
@@ -130,12 +131,9 @@ func (s *userService) Register(ctx context.Context, cmd *RegisterCommand) error 
 		},
 	}
 
-	hashedPassword, err := s.passwordHasher.Hash(cmd.Password)
-	if err != nil {
-		return ErrUsers.Code("register").Wrap(err)
+	if err := user.SetPassword(cmd.Password, s.passwordHasher); err != nil {
+		return ErrUsers.Code("hash_password").Wrap(err)
 	}
-
-	user.Password = hashedPassword
 
 	if err := s.userRepo.Save(ctx, user); err != nil {
 		return ErrUsers.Code("register").Wrap(err)
@@ -150,7 +148,7 @@ func (s *userService) Login(ctx context.Context, cmd *LoginCommand) (*LoginRespo
 		return nil, ErrUsers.Code("login").Wrap(err)
 	}
 
-	if !s.passwordHasher.Compare(user.Password, cmd.Password) {
+	if !user.ComparePassword(cmd.Password, s.passwordHasher) {
 		return nil, ErrUsers.Code("login").AddContext("password", "mismatch")
 	}
 
@@ -212,16 +210,9 @@ func (s *userService) ChangePassword(ctx context.Context, userID models.ID, cmd 
 		return ErrNotFound.Wrap(err)
 	}
 
-	if !s.passwordHasher.Compare(user.Password, cmd.OldPassword) {
-		return ErrUsers.Code("change_password").AddContext("password", "mismatch")
+	if err := user.ChangePassword(cmd.OldPassword, cmd.NewPassword, s.passwordHasher); err != nil {
+		return ErrUsers.Code("change_password").AddContext("password", "mismatch").Wrap(err)
 	}
-
-	hashedPassword, err := s.passwordHasher.Hash(cmd.NewPassword)
-	if err != nil {
-		return ErrUsers.Code("change_password").Wrap(err)
-	}
-
-	user.Password = hashedPassword
 
 	if err := s.userRepo.Save(ctx, user); err != nil {
 		return ErrUsers.Code("change_password").Wrap(err)
