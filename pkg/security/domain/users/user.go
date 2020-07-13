@@ -32,11 +32,11 @@ type Permission struct {
 	Module     string
 }
 
-func (u *User) IsAdmin() bool {
-	return u.Role.Code == "admin"
+func (u *User) HasRole(role string) bool {
+	return u.Role.Code == role
 }
 
-func (u *User) hasPermissions(permission string, module string) bool {
+func (u *User) HasPermissions(permission string, module string) bool {
 	for _, rolePerm := range u.Role.Permissions {
 		if rolePerm.Module == module {
 			for _, perm := range strings.Split(permission, "") {
@@ -50,20 +50,24 @@ func (u *User) hasPermissions(permission string, module string) bool {
 	return false
 }
 
+func (u *User) IsAdmin() bool {
+	return u.HasRole("admin")
+}
+
 func (u *User) CanCreate(module string) bool {
-	return u.hasPermissions("C", module)
+	return u.HasPermissions("C", module)
 }
 
 func (u *User) CanRead(module string) bool {
-	return u.hasPermissions("R", module)
+	return u.HasPermissions("R", module)
 }
 
 func (u *User) CanUpdate(module string) bool {
-	return u.hasPermissions("U", module)
+	return u.HasPermissions("U", module)
 }
 
 func (u *User) CanDelete(module string) bool {
-	return u.hasPermissions("D", module)
+	return u.HasPermissions("D", module)
 }
 
 func (u *User) ComparePassword(plainPassword string, hasher PasswordHasher) bool {

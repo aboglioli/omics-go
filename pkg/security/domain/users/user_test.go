@@ -49,6 +49,11 @@ func TestPermissions(t *testing.T) {
 		"CRUD",
 		true,
 	}, {
+		"user",
+		users.Permission{"CRUD", "module"},
+		"CK",
+		false,
+	}, {
 		"admin",
 		users.Permission{"R", "module"},
 		"CRUD",
@@ -64,7 +69,7 @@ func TestPermissions(t *testing.T) {
 				},
 			}
 
-			rRes := user.hasPermissions(test.aPermission, "module")
+			rRes := user.IsAdmin() || user.HasPermissions(test.aPermission, "module")
 			if rRes != test.rRes {
 				t.Errorf("\nExp: %v\nAct: %v", test.rRes, rRes)
 			}

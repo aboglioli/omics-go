@@ -3,8 +3,8 @@ package users
 import (
 	"context"
 
+	"omics/pkg/security/application/auth"
 	"omics/pkg/security/domain/roles"
-	"omics/pkg/security/domain/token"
 	"omics/pkg/security/domain/users"
 	"omics/pkg/shared/models"
 )
@@ -21,15 +21,6 @@ func (cmd *RegisterCommand) Validate() error {
 	return nil
 }
 
-type LoginCommand struct {
-	UsernameOrEmail string `json:"username"`
-	Password        string `json:"password"`
-}
-
-type LoginResponse struct {
-	AuthToken string `json:"auth_token"`
-}
-
 type UpdateCommand struct {
 	Name     string `json:"name"`
 	Lastname string `json:"lastnaem"`
@@ -40,42 +31,47 @@ type ChangePasswordCommand struct {
 	NewPassword string `json:"new_password"`
 }
 
+type PublicUser struct {
+	ID       models.ID `json:"id"`
+	Username string    `json:"username"`
+	Name     string    `json:"name"`
+	Lastname string    `json:"lastname"`
+}
+
 type UserService interface {
-	GetLoggedIn(ctx context.Context) (*users.User, error)
-	GetByID(ctx context.Context, userID models.ID) (*users.User, error)
+	GetMe(ctx context.Context) (*PublicUser, error)
+	GetByID(ctx context.Context, userID models.ID) (*PublicUser, error)
 
 	Register(ctx context.Context, cmd *RegisterCommand) error
-	Login(ctx context.Context, cmd *LoginCommand) (*LoginResponse, error)
 	Update(ctx context.Context, userID models.ID, cmd *UpdateCommand) error
 	ChangePassword(ctx context.Context, userID string, cmd *ChangePasswordCommand) error
-	Logout(ctx context.Context)
 }
 
 type userService struct {
-	roleRepo       roles.RoleRepository
-	userRepo       users.UserRepository
-	tokenServ      token.TokenService
-	passwordHasher users.PasswordHasher
+	roleRepo          roles.RoleRepository
+	userRepo          users.UserRepository
+	passwordHasher    users.PasswordHasher
+	authorizationServ auth.AuthorizationService
 }
 
-func (s *userService) GetLoggedIn(ctx context.Context) (*users.User, error) {
-	t, err := token.TokenFromContext(ctx)
+func (s *userService) GetMe(ctx context.Context) (*PublicUser, error) {
+	user, err := s.authorizationServ.GetUserFromCtx(ctx)
 	if err != nil {
-		return nil, ErrUnauthorized.Wrap(err)
+		return nil, err
 	}
 
-	user, err := s.tokenServ.Validate(ctx, t)
-	if err != nil {
-		return nil, ErrUnauthorized.Wrap(err)
-	}
-
-	return user, nil
+	return &PublicUser{
+		ID:       user.ID,
+		Username: user.Username,
+		Name:     user.Name,
+		Lastname: user.Lastname,
+	}, nil
 }
 
 func (s *userService) GetByID(ctx context.Context, userID models.ID) (*users.User, error) {
-	user, err := s.GetLoggedIn(ctx)
+	user, err := s.authorizationServ.GetUserFromCtx(ctx)
 	if err != nil {
-		return nil, ErrUsers.Code("get_by_id").Wrap(err)
+		return nil, err
 	}
 
 	if !user.IsAdmin() {
@@ -135,30 +131,10 @@ func (s *userService) Register(ctx context.Context, cmd *RegisterCommand) error 
 	return nil
 }
 
-func (s *userService) Login(ctx context.Context, cmd *LoginCommand) (*LoginResponse, error) {
-	user, err := s.userRepo.FindByUsernameOrEmail(ctx, cmd.UsernameOrEmail)
-	if err != nil {
-		return nil, ErrUsers.Code("login").Wrap(err)
-	}
-
-	if !user.ComparePassword(cmd.Password, s.passwordHasher) {
-		return nil, ErrUsers.Code("login").AddContext("password", "mismatch")
-	}
-
-	t, err := s.tokenServ.Create(ctx, user)
-	if err != nil {
-		return nil, ErrUsers.Code("login").Wrap(err)
-	}
-
-	return &LoginResponse{
-		AuthToken: string(t),
-	}, nil
-}
-
 func (s *userService) Update(ctx context.Context, userID models.ID, cmd *UpdateCommand) error {
-	user, err := s.GetLoggedIn(ctx)
+	user, err := s.authorizationServ.GetUserFromCtx(ctx)
 	if err != nil {
-		return ErrUsers.Code("update").Wrap(err)
+		return err
 	}
 
 	if !user.IsAdmin() {
@@ -183,9 +159,9 @@ func (s *userService) Update(ctx context.Context, userID models.ID, cmd *UpdateC
 }
 
 func (s *userService) ChangePassword(ctx context.Context, userID models.ID, cmd *ChangePasswordCommand) error {
-	user, err := s.GetLoggedIn(ctx)
+	user, err := s.authorizationServ.GetUserFromCtx(ctx)
 	if err != nil {
-		return ErrUsers.Code("change_password").Wrap(err)
+		return err
 	}
 
 	if !user.IsAdmin() {
@@ -205,19 +181,6 @@ func (s *userService) ChangePassword(ctx context.Context, userID models.ID, cmd 
 
 	if err := s.userRepo.Save(ctx, user); err != nil {
 		return ErrUsers.Code("change_password").Wrap(err)
-	}
-
-	return nil
-}
-
-func (s *userService) Logout(ctx context.Context) error {
-	t, err := token.TokenFromContext(ctx)
-	if err != nil {
-		return ErrUnauthorized.Wrap(err)
-	}
-
-	if err := s.tokenServ.Invalidate(ctx, t); err != nil {
-		return ErrUnauthorized.Wrap(err)
 	}
 
 	return nil
