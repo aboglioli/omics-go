@@ -7,7 +7,7 @@ package mocks
 import (
 	context "context"
 	gomock "github.com/golang/mock/gomock"
-	events "omics/pkg/common/events"
+	events "omics/pkg/shared/events"
 	reflect "reflect"
 )
 

@@ -5,8 +5,8 @@ import (
 	"context"
 	"fmt"
 
-	"omics/pkg/common/cache"
 	"omics/pkg/security/domain/users"
+	"omics/pkg/shared/cache"
 )
 
 type TokenService interface {

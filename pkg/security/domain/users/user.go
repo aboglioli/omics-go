@@ -4,7 +4,7 @@ import (
 	"strings"
 	"time"
 
-	"omics/pkg/common/models"
+	"omics/pkg/shared/models"
 )
 
 // User is an aggregate root

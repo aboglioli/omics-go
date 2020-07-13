@@ -6,10 +6,10 @@ import (
 	"reflect"
 	"testing"
 
-	cache "omics/pkg/common/cache/mocks"
 	"omics/pkg/security/domain/token"
 	"omics/pkg/security/domain/token/mocks"
 	"omics/pkg/security/domain/users"
+	cache "omics/pkg/shared/cache/mocks"
 
 	"github.com/golang/mock/gomock"
 )

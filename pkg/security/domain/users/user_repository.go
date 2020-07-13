@@ -3,7 +3,7 @@ package users
 
 import (
 	"context"
-	"omics/pkg/common/models"
+	"omics/pkg/shared/models"
 )
 
 type UserRepository interface {

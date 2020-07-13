@@ -3,7 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
-	"omics/pkg/common/events"
+	"omics/pkg/shared/events"
 	"sync"
 	"time"
 )

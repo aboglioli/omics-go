@@ -7,8 +7,8 @@ package mocks
 import (
 	context "context"
 	gomock "github.com/golang/mock/gomock"
-	models "omics/pkg/common/models"
 	users "omics/pkg/security/domain/users"
+	models "omics/pkg/shared/models"
 	reflect "reflect"
 )
 

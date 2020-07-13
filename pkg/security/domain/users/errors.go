@@ -1,6 +1,6 @@
 package users
 
-import "omics/pkg/common/errors"
+import "omics/pkg/shared/errors"
 
 var (
 	ErrUsers = errors.Internal.New().Path("security.domain.users")

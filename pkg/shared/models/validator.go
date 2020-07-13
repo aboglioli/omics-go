@@ -3,7 +3,7 @@ package models
 import (
 	"regexp"
 
-	"omics/pkg/common/errors"
+	"omics/pkg/shared/errors"
 
 	govalidator "github.com/go-playground/validator/v10"
 	"github.com/iancoleman/strcase"

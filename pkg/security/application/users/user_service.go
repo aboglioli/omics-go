@@ -3,10 +3,10 @@ package users
 import (
 	"context"
 
-	"omics/pkg/common/models"
 	"omics/pkg/security/domain/roles"
 	"omics/pkg/security/domain/token"
 	"omics/pkg/security/domain/users"
+	"omics/pkg/shared/models"
 )
 
 type RegisterCommand struct {

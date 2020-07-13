@@ -5,7 +5,7 @@ import (
 	"strconv"
 	"testing"
 
-	"omics/pkg/common/errors"
+	"omics/pkg/shared/errors"
 )
 
 func TestValidator(t *testing.T) {

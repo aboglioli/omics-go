@@ -1,6 +1,6 @@
 package token
 
-import "omics/pkg/common/errors"
+import "omics/pkg/shared/errors"
 
 var (
 	ErrToken = errors.Internal.New().Path("security.domain.token")
