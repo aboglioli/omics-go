@@ -64,7 +64,7 @@ func TestPermissions(t *testing.T) {
 				},
 			}
 
-			rRes := user.HasPermissions(test.aPermission, "module")
+			rRes := user.hasPermissions(test.aPermission, "module")
 			if rRes != test.rRes {
 				t.Errorf("\nExp: %v\nAct: %v", test.rRes, rRes)
 			}

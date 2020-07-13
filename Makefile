@@ -1,5 +1,8 @@
+all: generate test
+
 generate:
 	go generate ./...
 
-test: generate
+test:
 	go test ./...
+

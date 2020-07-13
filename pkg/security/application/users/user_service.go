@@ -41,8 +41,8 @@ type ChangePasswordCommand struct {
 }
 
 type UserService interface {
-	GetByID(ctx context.Context, userID models.ID) (*users.User, error)
 	GetLoggedIn(ctx context.Context) (*users.User, error)
+	GetByID(ctx context.Context, userID models.ID) (*users.User, error)
 
 	Register(ctx context.Context, cmd *RegisterCommand) error
 	Login(ctx context.Context, cmd *LoginCommand) (*LoginResponse, error)
@@ -58,33 +58,6 @@ type userService struct {
 	passwordHasher users.PasswordHasher
 }
 
-func (s *userService) GetByID(ctx context.Context, userID models.ID) (*users.User, error) {
-	t, err := token.TokenFromContext(ctx)
-	if err != nil {
-		return nil, ErrNotFound.Wrap(err)
-	}
-
-	user, err := s.tokenServ.Validate(ctx, t)
-	if err != nil {
-		return nil, ErrNotFound.Wrap(err)
-	}
-
-	if !user.HasPermissions("R", "users") {
-		return nil, ErrNotFound.Wrap(err)
-	}
-
-	if !user.IsAdmin() && user.ID != userID {
-		return nil, ErrNotFound.Wrap(err)
-	}
-
-	user, err = s.userRepo.FindByID(ctx, userID)
-	if err != nil {
-		return nil, ErrNotFound.Wrap(err)
-	}
-
-	return user, nil
-}
-
 func (s *userService) GetLoggedIn(ctx context.Context) (*users.User, error) {
 	t, err := token.TokenFromContext(ctx)
 	if err != nil {
@@ -94,6 +67,26 @@ func (s *userService) GetLoggedIn(ctx context.Context) (*users.User, error) {
 	user, err := s.tokenServ.Validate(ctx, t)
 	if err != nil {
 		return nil, ErrUnauthorized.Wrap(err)
+	}
+
+	return user, nil
+}
+
+func (s *userService) GetByID(ctx context.Context, userID models.ID) (*users.User, error) {
+	user, err := s.GetLoggedIn(ctx)
+	if err != nil {
+		return nil, ErrUsers.Code("get_by_id").Wrap(err)
+	}
+
+	if !user.IsAdmin() {
+		if !(user.CanRead("users") && user.ID == userID) {
+			return nil, ErrUnauthorized
+		}
+	}
+
+	user, err = s.userRepo.FindByID(ctx, userID)
+	if err != nil {
+		return nil, ErrNotFound.Wrap(err)
 	}
 
 	return user, nil
@@ -168,12 +161,10 @@ func (s *userService) Update(ctx context.Context, userID models.ID, cmd *UpdateC
 		return ErrUsers.Code("update").Wrap(err)
 	}
 
-	if !user.HasPermissions("U", "users") {
-		return ErrUnauthorized
-	}
-
-	if !user.IsAdmin() && user.ID != userID {
-		return ErrUnauthorized
+	if !user.IsAdmin() {
+		if !(user.CanUpdate("users") && user.ID == userID) {
+			return ErrUnauthorized
+		}
 	}
 
 	user, err = s.userRepo.FindByID(ctx, userID)
@@ -197,12 +188,10 @@ func (s *userService) ChangePassword(ctx context.Context, userID models.ID, cmd 
 		return ErrUsers.Code("change_password").Wrap(err)
 	}
 
-	if !user.HasPermissions("U", "users") {
-		return ErrUnauthorized
-	}
-
-	if !user.IsAdmin() && user.ID != userID {
-		return ErrUnauthorized
+	if !user.IsAdmin() {
+		if !(user.CanUpdate("users") && user.ID == userID) {
+			return ErrUnauthorized
+		}
 	}
 
 	user, err = s.userRepo.FindByID(ctx, userID)
