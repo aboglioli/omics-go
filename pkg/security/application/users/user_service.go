@@ -3,11 +3,15 @@ package users
 import (
 	"context"
 
-	"omics/pkg/security/application/auth"
 	"omics/pkg/security/domain/token"
 	"omics/pkg/security/domain/users"
 	"omics/pkg/shared/models"
 )
+
+type LoginCommand struct {
+	UsernameOrEmail string `json:"username"`
+	Password        string `json:"password"`
+}
 
 type RegisterCommand struct {
 	Username string `json:"username"`
@@ -35,18 +39,18 @@ type UserService interface {
 	Me(ctx context.Context) (*users.User, error)
 	GetByID(ctx context.Context, userID models.ID) (*users.User, error)
 
+	Login(ctx context.Context, cmd *LoginCommand) (token.Token, error)
 	Register(ctx context.Context, cmd *RegisterCommand) error
 	Update(ctx context.Context, userID models.ID, cmd *UpdateCommand) error
 	ChangePassword(ctx context.Context, userID string, cmd *ChangePasswordCommand) error
 }
 
 type userService struct {
-	roleRepo          users.RoleRepository
-	userRepo          users.UserRepository
-	userServ          users.UserService
-	passwordHasher    users.PasswordHasher
-	passwordValidator users.PasswordValidator
-	authorizationServ auth.AuthorizationService
+	authenticationServ users.AuthenticationService
+	roleRepo           users.RoleRepository
+	tokenServ          token.TokenService
+	userRepo           users.UserRepository
+	userServ           users.UserService
 }
 
 func (s *userService) Me(ctx context.Context) (*users.User, error) {
@@ -55,7 +59,17 @@ func (s *userService) Me(ctx context.Context) (*users.User, error) {
 		return nil, ErrUsers.Wrap(err)
 	}
 
-	user, err := s.authorizationServ.GetUserByToken(ctx, t)
+	data, err := s.tokenServ.Validate(ctx, t)
+	if err != nil {
+		return nil, ErrUsers.Wrap(err)
+	}
+
+	userID, ok := data["user_id"]
+	if !ok {
+		return nil, ErrUsers.Wrap(err)
+	}
+
+	user, err := s.userRepo.FindByID(ctx, models.ID(userID))
 	if err != nil {
 		return nil, ErrUsers.Wrap(err)
 	}
@@ -81,6 +95,21 @@ func (s *userService) GetByID(ctx context.Context, userID models.ID) (*users.Use
 	}
 
 	return user, nil
+}
+
+func (s *userService) Login(ctx context.Context, cmd *LoginCommand) (token.Token, error) {
+	user, err := s.authenticationServ.Authenticate(ctx, cmd.UsernameOrEmail, cmd.Password)
+	if err != nil {
+		return token.Token(""), err
+	}
+
+	data := token.NewData(user.ID().String())
+	tok, err := s.tokenServ.Create(ctx, data)
+	if err != nil {
+		return token.Token(""), users.ErrUnauthorized.Wrap(err)
+	}
+
+	return tok, nil
 }
 
 func (s *userService) Register(ctx context.Context, cmd *RegisterCommand) error {
@@ -110,8 +139,7 @@ func (s *userService) Register(ctx context.Context, cmd *RegisterCommand) error 
 	}
 
 	user.AssignRole(role)
-
-	if err := user.ChangePassword("", cmd.Password, s.passwordHasher, s.passwordValidator); err != nil {
+	if err := s.userServ.ChangePassword(user, "", cmd.Password); err != nil {
 		return ErrUsers.Code("hash_password").Wrap(err)
 	}
 
@@ -165,7 +193,7 @@ func (s *userService) ChangePassword(ctx context.Context, userID models.ID, cmd 
 		return ErrNotFound.Wrap(err)
 	}
 
-	if err := user.ChangePassword(cmd.OldPassword, cmd.NewPassword, s.passwordHasher, s.passwordValidator); err != nil {
+	if err := s.userServ.ChangePassword(user, cmd.OldPassword, cmd.NewPassword); err != nil {
 		return ErrUsers.Code("change_password").AddContext("password", "mismatch").Wrap(err)
 	}
 

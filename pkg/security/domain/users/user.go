@@ -10,8 +10,7 @@ import (
 // User is an aggregate root
 type User struct {
 	id                 models.ID
-	username           Username
-	email              Email
+	identity           Identity
 	password           string
 	name               Fullname
 	role               Role
@@ -29,11 +28,7 @@ func NewUser(
 
 	u := &User{id: id}
 
-	if err := u.SetUsername(username); err != nil {
-		errs = errs.Merge(err)
-	}
-
-	if err := u.SetEmail(email); err != nil {
+	if err := u.setIdentity(username, email); err != nil {
 		errs = errs.Merge(err)
 	}
 
@@ -52,39 +47,21 @@ func (u *User) ID() models.ID {
 	return u.id
 }
 
-func (u *User) Username() Username {
-	return u.username
-}
-
-func (u *User) Email() Email {
-	return u.email
-}
-
-func (u *User) Password() string {
-	return u.password
+func (u *User) Identity() Identity {
+	return u.identity
 }
 
 func (u *User) Name() Fullname {
 	return u.name
 }
 
-func (u *User) SetUsername(username string) error {
-	un, err := NewUsername(username)
+func (u *User) setIdentity(username, email string) error {
+	id, err := NewIdentity(username, email)
 	if err != nil {
 		return err
 	}
 
-	u.username = un
-	return nil
-}
-
-func (u *User) SetEmail(email string) error {
-	e, err := NewEmail(email)
-	if err != nil {
-		return err
-	}
-
-	u.email = e
+	u.identity = id
 	return nil
 }
 
@@ -104,7 +81,7 @@ func (u *User) AssignRole(role Role) error {
 	return nil
 }
 
-func (u *User) WasAuthenticated() {
+func (u *User) wasAuthenticated() {
 	u.lastAuthentication = time.Now()
 }
 
@@ -128,29 +105,4 @@ func (u *User) HasPermissions(permissions string, module string) bool {
 		}
 	}
 	return false
-}
-
-func (u *User) ComparePassword(plainPassword string, hasher PasswordHasher) bool {
-	return hasher.Compare(u.password, plainPassword)
-}
-
-func (u *User) ChangePassword(oldPassword, newPassword string, hasher PasswordHasher, validator PasswordValidator) error {
-	if u.password != "" {
-		if !u.ComparePassword(oldPassword, hasher) {
-			return ErrUsers.Code("password_mismatch")
-		}
-	}
-
-	if err := validator.Validate(newPassword); err != nil {
-		return ErrValidation.AddContext("password", "weak").Wrap(err)
-	}
-
-	hashedPassword, err := hasher.Hash(newPassword)
-	if err != nil {
-		return ErrUsers.Code("hash_password").Wrap(err)
-	}
-
-	u.password = hashedPassword
-
-	return nil
 }

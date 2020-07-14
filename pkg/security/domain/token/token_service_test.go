@@ -8,7 +8,6 @@ import (
 
 	"omics/pkg/security/domain/token"
 	"omics/pkg/security/domain/token/mocks"
-	"omics/pkg/security/domain/users"
 	cache "omics/pkg/shared/cache/mocks"
 
 	"github.com/golang/mock/gomock"
@@ -36,15 +35,8 @@ func buildTokenService(ctrl *gomock.Controller) *tokenService {
 	}
 }
 
-func userFixture() *users.User {
-	u, _ := users.NewUser(
-		"U001",
-		"username",
-		"user@email.com",
-		"Name",
-		"Lastname",
-	)
-	return u
+func dataFixture() token.Data {
+	return token.NewData("U002")
 }
 
 func TestCreate(t *testing.T) {
@@ -53,56 +45,56 @@ func TestCreate(t *testing.T) {
 
 	tests := []struct {
 		name   string
-		mock   func(*tokenService) (context.Context, *users.User)
+		mock   func(*tokenService) (context.Context, token.Data)
 		rToken token.Token
 		rErr   error
 	}{{
 		"error generating token",
-		func(tb *tokenService) (context.Context, *users.User) {
-			user := userFixture()
+		func(tb *tokenService) (context.Context, token.Data) {
+			data := dataFixture()
 			tb.enc.EXPECT().
 				Encode(gomock.Any()).
 				Return(token.Token(""), ErrTest)
-			return context.Background(), user
+			return context.Background(), data
 		},
 		"",
 		ErrTest,
 	}, {
 		"error saving token",
-		func(tb *tokenService) (context.Context, *users.User) {
-			user := userFixture()
+		func(tb *tokenService) (context.Context, token.Data) {
+			data := dataFixture()
 			tb.enc.EXPECT().
 				Encode(gomock.Any()).
-				Return(token.Token("token:123"), nil)
+				Return(token.Token("##123##"), nil)
 			tb.cache.EXPECT().
-				Set(context.Background(), gomock.Any(), user).
+				Set(context.Background(), gomock.Any(), data).
 				Return(token.ErrToken)
-			return context.Background(), user
+			return context.Background(), data
 		},
 		"",
 		token.ErrToken,
 	}, {
 		"generate token",
-		func(tb *tokenService) (context.Context, *users.User) {
-			user := userFixture()
+		func(tb *tokenService) (context.Context, token.Data) {
+			data := dataFixture()
 			tb.enc.EXPECT().
 				Encode(gomock.Any()).
-				Return(token.Token("token:123"), nil)
+				Return(token.Token("##123##"), nil)
 			tb.cache.EXPECT().
-				Set(context.Background(), gomock.Any(), user).
+				Set(context.Background(), gomock.Any(), data).
 				Return(nil)
-			return context.Background(), user
+			return context.Background(), data
 		},
-		"token:123",
+		"##123##",
 		nil,
 	}}
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			tb := buildTokenService(ctrl)
-			aCtx, aUser := test.mock(tb)
+			aCtx, aData := test.mock(tb)
 
-			rToken, rErr := tb.serv.Create(aCtx, aUser)
+			rToken, rErr := tb.serv.Create(aCtx, aData)
 
 			if !errors.Is(rErr, test.rErr) {
 				t.Errorf("\nExp: %s\nAct: %s", test.rErr, rErr)
@@ -120,15 +112,15 @@ func TestValidate(t *testing.T) {
 	tests := []struct {
 		name  string
 		mock  func(*tokenService) (context.Context, token.Token)
-		rUser *users.User
+		rData token.Data
 		rErr  error
 	}{{
 		"error decoding",
 		func(tb *tokenService) (context.Context, token.Token) {
 			tb.enc.EXPECT().
-				Decode(token.Token("token:123")).
+				Decode(token.Token("##123##")).
 				Return(token.TokenID(""), ErrTest)
-			return context.Background(), token.Token("token:123")
+			return context.Background(), token.Token("##123##")
 		},
 		nil,
 		ErrTest,
@@ -136,29 +128,29 @@ func TestValidate(t *testing.T) {
 		"error getting cache",
 		func(tb *tokenService) (context.Context, token.Token) {
 			tb.enc.EXPECT().
-				Decode(token.Token("token:123")).
+				Decode(token.Token("##123##")).
 				Return(token.TokenID("t123"), nil)
 			tb.cache.EXPECT().
 				Get(context.Background(), "token:t123").
 				Return(nil, ErrTest)
-			return context.Background(), token.Token("token:123")
+			return context.Background(), token.Token("##123##")
 		},
 		nil,
 		ErrTest,
 	}, {
 		"validate",
 		func(tb *tokenService) (context.Context, token.Token) {
-			user := userFixture()
+			data := dataFixture()
 			tb.enc.EXPECT().
-				Decode(token.Token("token:123")).
+				Decode(token.Token("##123##")).
 				Return(token.TokenID("t123"), nil)
 			tb.cache.EXPECT().
 				Get(context.Background(), "token:t123").
-				Return(user, nil)
+				Return(data, nil)
 
-			return context.Background(), token.Token("token:123")
+			return context.Background(), token.Token("##123##")
 		},
-		userFixture(),
+		dataFixture(),
 		nil,
 	}}
 
@@ -167,93 +159,12 @@ func TestValidate(t *testing.T) {
 			tb := buildTokenService(ctrl)
 			aCtx, aToken := test.mock(tb)
 
-			rUser, rErr := tb.serv.Validate(aCtx, aToken)
+			rData, rErr := tb.serv.Validate(aCtx, aToken)
 
 			if !errors.Is(rErr, test.rErr) {
 				t.Errorf("\nExp: %s\nAct: %s", test.rErr, rErr)
-			} else if !reflect.DeepEqual(test.rUser, rUser) {
-				t.Errorf("\nExp: %v\nAct: %v", test.rUser, test.rUser)
-			}
-		})
-	}
-}
-
-func TestUpdate(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	tests := []struct {
-		name string
-		mock func(tb *tokenService) (context.Context, token.Token, *users.User)
-		rErr error
-	}{{
-		"error decoding",
-		func(tb *tokenService) (context.Context, token.Token, *users.User) {
-			tb.enc.EXPECT().
-				Decode(token.Token("token:123")).
-				Return(token.TokenID(""), ErrTest)
-			return context.Background(), token.Token("token:123"), nil
-		},
-		ErrTest,
-	}, {
-		"error getting from cache",
-		func(tb *tokenService) (context.Context, token.Token, *users.User) {
-			tb.enc.EXPECT().
-				Decode(token.Token("#123#")).
-				Return(token.TokenID("123"), nil)
-			tb.cache.EXPECT().
-				Get(context.Background(), "token:123").
-				Return(nil, ErrTest)
-			return context.Background(), token.Token("#123#"), nil
-		},
-		ErrTest,
-	}, {
-		"error saving new user",
-		func(tb *tokenService) (context.Context, token.Token, *users.User) {
-			oldUser := userFixture()
-			newUser := userFixture()
-			newUser.SetName("New", "Fancier Name")
-			tb.enc.EXPECT().
-				Decode(token.Token("#123#")).
-				Return(token.TokenID("123"), nil)
-			tb.cache.EXPECT().
-				Get(context.Background(), "token:123").
-				Return(oldUser, nil)
-			tb.cache.EXPECT().
-				Set(context.Background(), "token:123", newUser).
-				Return(ErrTest)
-			return context.Background(), token.Token("#123#"), newUser
-		},
-		ErrTest,
-	}, {
-		"update",
-		func(tb *tokenService) (context.Context, token.Token, *users.User) {
-			oldUser := userFixture()
-			newUser := userFixture()
-			newUser.SetName("New", "Fancier Name")
-			tb.enc.EXPECT().
-				Decode(token.Token("#123#")).
-				Return(token.TokenID("123"), nil)
-			tb.cache.EXPECT().
-				Get(context.Background(), "token:123").
-				Return(oldUser, nil)
-			tb.cache.EXPECT().
-				Set(context.Background(), "token:123", newUser).
-				Return(nil)
-			return context.Background(), token.Token("#123#"), newUser
-		},
-		nil,
-	}}
-
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			tb := buildTokenService(ctrl)
-			aCtx, aToken, aUser := test.mock(tb)
-
-			rErr := tb.serv.Update(aCtx, aToken, aUser)
-
-			if !errors.Is(rErr, test.rErr) {
-				t.Errorf("\nExp: %s\nAct: %s", test.rErr, rErr)
+			} else if !reflect.DeepEqual(test.rData, rData) {
+				t.Errorf("\nExp: %v\nAct: %v", test.rData, test.rData)
 			}
 		})
 	}

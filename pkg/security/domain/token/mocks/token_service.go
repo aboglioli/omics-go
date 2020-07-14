@@ -8,7 +8,6 @@ import (
 	context "context"
 	gomock "github.com/golang/mock/gomock"
 	token "omics/pkg/security/domain/token"
-	users "omics/pkg/security/domain/users"
 	reflect "reflect"
 )
 
@@ -36,59 +35,45 @@ func (m *MockTokenService) EXPECT() *MockTokenServiceMockRecorder {
 }
 
 // Create mocks base method.
-func (m *MockTokenService) Create(ctx context.Context, user *users.User) (token.Token, error) {
+func (m *MockTokenService) Create(ctx context.Context, d token.Data) (token.Token, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Create", ctx, user)
+	ret := m.ctrl.Call(m, "Create", ctx, d)
 	ret0, _ := ret[0].(token.Token)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // Create indicates an expected call of Create.
-func (mr *MockTokenServiceMockRecorder) Create(ctx, user interface{}) *gomock.Call {
+func (mr *MockTokenServiceMockRecorder) Create(ctx, d interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Create", reflect.TypeOf((*MockTokenService)(nil).Create), ctx, user)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Create", reflect.TypeOf((*MockTokenService)(nil).Create), ctx, d)
 }
 
 // Validate mocks base method.
-func (m *MockTokenService) Validate(ctx context.Context, token token.Token) (*users.User, error) {
+func (m *MockTokenService) Validate(ctx context.Context, t token.Token) (token.Data, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Validate", ctx, token)
-	ret0, _ := ret[0].(*users.User)
+	ret := m.ctrl.Call(m, "Validate", ctx, t)
+	ret0, _ := ret[0].(token.Data)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // Validate indicates an expected call of Validate.
-func (mr *MockTokenServiceMockRecorder) Validate(ctx, token interface{}) *gomock.Call {
+func (mr *MockTokenServiceMockRecorder) Validate(ctx, t interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Validate", reflect.TypeOf((*MockTokenService)(nil).Validate), ctx, token)
-}
-
-// Update mocks base method.
-func (m *MockTokenService) Update(ctx context.Context, token token.Token, user *users.User) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Update", ctx, token, user)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// Update indicates an expected call of Update.
-func (mr *MockTokenServiceMockRecorder) Update(ctx, token, user interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Update", reflect.TypeOf((*MockTokenService)(nil).Update), ctx, token, user)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Validate", reflect.TypeOf((*MockTokenService)(nil).Validate), ctx, t)
 }
 
 // Invalidate mocks base method.
-func (m *MockTokenService) Invalidate(ctx context.Context, token token.Token) error {
+func (m *MockTokenService) Invalidate(ctx context.Context, t token.Token) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Invalidate", ctx, token)
+	ret := m.ctrl.Call(m, "Invalidate", ctx, t)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // Invalidate indicates an expected call of Invalidate.
-func (mr *MockTokenServiceMockRecorder) Invalidate(ctx, token interface{}) *gomock.Call {
+func (mr *MockTokenServiceMockRecorder) Invalidate(ctx, t interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Invalidate", reflect.TypeOf((*MockTokenService)(nil).Invalidate), ctx, token)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Invalidate", reflect.TypeOf((*MockTokenService)(nil).Invalidate), ctx, t)
 }
