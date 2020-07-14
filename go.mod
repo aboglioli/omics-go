@@ -3,6 +3,7 @@ module omics
 go 1.14
 
 require (
+	github.com/aboglioli/big-brother v0.0.0-20200117065245-743af34bbe24
 	github.com/go-playground/validator/v10 v10.3.0
 	github.com/golang/mock v1.4.3
 	github.com/google/uuid v1.1.1

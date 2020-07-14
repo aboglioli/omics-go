@@ -2,6 +2,7 @@ package errors
 
 import (
 	"errors"
+	"strconv"
 	"testing"
 )
 
@@ -139,4 +140,29 @@ func TestNestedErrores(t *testing.T) {
 		}
 	}
 
+}
+
+func TestContext(t *testing.T) {
+	tests := []struct {
+		aErr    Error
+		rCtxLen int
+	}{{
+		App.New().Context(Context{"k1": "v1", "k2": "v2"}),
+		2,
+	}, {
+		Internal.New().AddContext("k1", "v1").AddContext("k2", "v2"),
+		2,
+	}, {
+		App.New().AddContext("k", "v1").AddContext("k", "v2"),
+		1,
+	}}
+
+	for i, test := range tests {
+		t.Run(strconv.Itoa(i), func(t *testing.T) {
+			rCtxLen := test.aErr.ContextLen()
+			if test.rCtxLen != rCtxLen {
+				t.Errorf("\nExp: %d\nAct: %d", test.rCtxLen, rCtxLen)
+			}
+		})
+	}
 }

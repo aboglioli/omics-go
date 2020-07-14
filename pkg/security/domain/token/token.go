@@ -14,7 +14,7 @@ func NewTokenID() TokenID {
 	return TokenID(uuid)
 }
 
-func TokenFromContext(ctx context.Context) (Token, error) {
+func FromContext(ctx context.Context) (Token, error) {
 	if tokenStr, ok := ctx.Value("authToken").(string); ok {
 		return Token(tokenStr), nil
 	}

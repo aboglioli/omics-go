@@ -7,7 +7,7 @@ package mocks
 import (
 	context "context"
 	gomock "github.com/golang/mock/gomock"
-	roles "omics/pkg/security/domain/roles"
+	users "omics/pkg/security/domain/users"
 	reflect "reflect"
 )
 
@@ -35,10 +35,10 @@ func (m *MockRoleRepository) EXPECT() *MockRoleRepositoryMockRecorder {
 }
 
 // FindByCode mocks base method.
-func (m *MockRoleRepository) FindByCode(ctx context.Context, code string) (*roles.Role, error) {
+func (m *MockRoleRepository) FindByCode(ctx context.Context, code string) (users.Role, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "FindByCode", ctx, code)
-	ret0, _ := ret[0].(*roles.Role)
+	ret0, _ := ret[0].(users.Role)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }

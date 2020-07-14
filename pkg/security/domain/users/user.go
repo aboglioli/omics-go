@@ -9,37 +9,117 @@ import (
 
 // User is an aggregate root
 type User struct {
-	ID        models.ID
-	Username  string
-	Email     string
-	password  string
-	Name      string
-	Lastname  string
-	Role      Role
-	LastLogin time.Time
-	CreatedAt time.Time
-	UpdatedAt time.Time
-	DeletedAt *time.Time
+	id                 models.ID
+	username           Username
+	email              Email
+	password           string
+	name               Fullname
+	role               Role
+	lastAuthentication time.Time
 }
 
-type Role struct {
-	Code        string
-	Permissions []Permission
+func NewUser(
+	id models.ID,
+	username string,
+	email string,
+	name string,
+	lastname string,
+) (*User, error) {
+	errs := ErrValidation
+
+	u := &User{id: id}
+
+	if err := u.SetUsername(username); err != nil {
+		errs = errs.Merge(err)
+	}
+
+	if err := u.SetEmail(email); err != nil {
+		errs = errs.Merge(err)
+	}
+
+	if err := u.SetName(name, lastname); err != nil {
+		errs = errs.Merge(err)
+	}
+
+	if errs.ContextLen() > 0 {
+		return nil, errs
+	}
+
+	return u, nil
 }
 
-type Permission struct {
-	Permission string
-	Module     string
+func (u *User) ID() models.ID {
+	return u.id
+}
+
+func (u *User) Username() Username {
+	return u.username
+}
+
+func (u *User) Email() Email {
+	return u.email
+}
+
+func (u *User) Password() string {
+	return u.password
+}
+
+func (u *User) Name() Fullname {
+	return u.name
+}
+
+func (u *User) SetUsername(username string) error {
+	un, err := NewUsername(username)
+	if err != nil {
+		return err
+	}
+
+	u.username = un
+	return nil
+}
+
+func (u *User) SetEmail(email string) error {
+	e, err := NewEmail(email)
+	if err != nil {
+		return err
+	}
+
+	u.email = e
+	return nil
+}
+
+func (u *User) SetName(name, lastname string) error {
+	n, err := NewFullname(name, lastname)
+	if err != nil {
+		return err
+	}
+
+	u.name = n
+	return nil
+}
+
+func (u *User) AssignRole(role Role) error {
+	u.role = role
+
+	return nil
+}
+
+func (u *User) WasAuthenticated() {
+	u.lastAuthentication = time.Now()
+}
+
+func (u *User) Role() Role {
+	return u.role
 }
 
 func (u *User) HasRole(role string) bool {
-	return u.Role.Code == role
+	return u.role.Code == role
 }
 
-func (u *User) HasPermissions(permission string, module string) bool {
-	for _, rolePerm := range u.Role.Permissions {
+func (u *User) HasPermissions(permissions string, module string) bool {
+	for _, rolePerm := range u.role.Permissions {
 		if rolePerm.Module == module {
-			for _, perm := range strings.Split(permission, "") {
+			for _, perm := range strings.Split(permissions, "") {
 				if !strings.Contains(rolePerm.Permission, perm) {
 					return false
 				}
@@ -50,47 +130,27 @@ func (u *User) HasPermissions(permission string, module string) bool {
 	return false
 }
 
-func (u *User) IsAdmin() bool {
-	return u.HasRole("admin")
-}
-
-func (u *User) CanCreate(module string) bool {
-	return u.HasPermissions("C", module)
-}
-
-func (u *User) CanRead(module string) bool {
-	return u.HasPermissions("R", module)
-}
-
-func (u *User) CanUpdate(module string) bool {
-	return u.HasPermissions("U", module)
-}
-
-func (u *User) CanDelete(module string) bool {
-	return u.HasPermissions("D", module)
-}
-
 func (u *User) ComparePassword(plainPassword string, hasher PasswordHasher) bool {
 	return hasher.Compare(u.password, plainPassword)
 }
 
-func (u *User) SetPassword(plainPassword string, hasher PasswordHasher) error {
-	hashedPassword, err := hasher.Hash(plainPassword)
+func (u *User) ChangePassword(oldPassword, newPassword string, hasher PasswordHasher, validator PasswordValidator) error {
+	if u.password != "" {
+		if !u.ComparePassword(oldPassword, hasher) {
+			return ErrUsers.Code("password_mismatch")
+		}
+	}
+
+	if err := validator.Validate(newPassword); err != nil {
+		return ErrValidation.AddContext("password", "weak").Wrap(err)
+	}
+
+	hashedPassword, err := hasher.Hash(newPassword)
 	if err != nil {
 		return ErrUsers.Code("hash_password").Wrap(err)
 	}
 
 	u.password = hashedPassword
-
-	return nil
-}
-
-func (u *User) ChangePassword(oldPassword, newPassword string, hasher PasswordHasher) error {
-	if !u.ComparePassword(oldPassword, hasher) {
-		return ErrUsers.Code("password_mismatch")
-	}
-
-	u.SetPassword(newPassword, hasher)
 
 	return nil
 }

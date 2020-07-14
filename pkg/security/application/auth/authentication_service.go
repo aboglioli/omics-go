@@ -12,13 +12,9 @@ type AuthenticateCommand struct {
 	Password        string `json:"password"`
 }
 
-type AuthenticateResponse struct {
-	AuthToken token.Token `json:"auth_token"`
-}
-
 type AuthenticationService interface {
-	Authenticate(ctx context.Context, cmd *AuthenticateCommand) (*AuthenticateResponse, error)
-	Deauthenticate(ctx context.Context) error
+	Authenticate(ctx context.Context, cmd *AuthenticateCommand) (token.Token, error)
+	Deauthenticate(ctx context.Context, t token.Token) error
 }
 
 type authenticationService struct {
@@ -30,32 +26,28 @@ type authenticationService struct {
 func (s *authenticationService) Authenticate(
 	ctx context.Context,
 	cmd *AuthenticateCommand,
-) (*AuthenticateResponse, error) {
-	user, err := s.userRepo.FindByUsernameOrEmail(ctx, cmd.UsernameOrEmail)
+) (token.Token, error) {
+	user, err := s.userRepo.FindByUsername(ctx, cmd.UsernameOrEmail)
 	if err != nil {
-		return nil, ErrAuthentication.Wrap(err)
+		user, err = s.userRepo.FindByEmail(ctx, cmd.UsernameOrEmail)
+		if err != nil {
+			return token.Token(""), ErrAuthentication.AddContext("username", "invalid").Wrap(err)
+		}
 	}
 
 	if !user.ComparePassword(cmd.Password, s.passwordHasher) {
-		return nil, ErrAuthentication.AddContext("password", "mismatch")
+		return token.Token(""), ErrAuthentication.AddContext("password", "invalid")
 	}
 
 	t, err := s.tokenServ.Create(ctx, user)
 	if err != nil {
-		return nil, ErrAuthentication.Wrap(err)
+		return token.Token(""), ErrAuthentication.Wrap(err)
 	}
 
-	return &AuthenticateResponse{
-		AuthToken: t,
-	}, nil
+	return t, nil
 }
 
-func (s *authenticationService) Deauthenticate(ctx context.Context) error {
-	t, err := token.TokenFromContext(ctx)
-	if err != nil {
-		return ErrUnauthorized.Wrap(err)
-	}
-
+func (s *authenticationService) Deauthenticate(ctx context.Context, t token.Token) error {
 	if err := s.tokenServ.Invalidate(ctx, t); err != nil {
 		return ErrUnauthorized.Wrap(err)
 	}

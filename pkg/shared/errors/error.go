@@ -76,6 +76,17 @@ func (e Error) AddContext(k string, v interface{}) Error {
 	return e
 }
 
+func (e Error) Merge(err error) Error {
+	if err, ok := err.(Error); ok {
+		return e.Context(err.context)
+	}
+	return e.Message(err.Error())
+}
+
+func (e Error) ContextLen() int {
+	return len(e.context)
+}
+
 // error interface implementations
 func (e Error) Wrap(cause error) Error {
 	e.cause = cause

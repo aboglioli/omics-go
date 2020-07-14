@@ -36,6 +36,17 @@ func buildTokenService(ctrl *gomock.Controller) *tokenService {
 	}
 }
 
+func userFixture() *users.User {
+	u, _ := users.NewUser(
+		"U001",
+		"username",
+		"user@email.com",
+		"Name",
+		"Lastname",
+	)
+	return u
+}
+
 func TestCreate(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
@@ -48,9 +59,7 @@ func TestCreate(t *testing.T) {
 	}{{
 		"error generating token",
 		func(tb *tokenService) (context.Context, *users.User) {
-			user := &users.User{
-				ID: "U001",
-			}
+			user := userFixture()
 			tb.enc.EXPECT().
 				Encode(gomock.Any()).
 				Return(token.Token(""), ErrTest)
@@ -61,9 +70,7 @@ func TestCreate(t *testing.T) {
 	}, {
 		"error saving token",
 		func(tb *tokenService) (context.Context, *users.User) {
-			user := &users.User{
-				ID: "U001",
-			}
+			user := userFixture()
 			tb.enc.EXPECT().
 				Encode(gomock.Any()).
 				Return(token.Token("token:123"), nil)
@@ -77,9 +84,7 @@ func TestCreate(t *testing.T) {
 	}, {
 		"generate token",
 		func(tb *tokenService) (context.Context, *users.User) {
-			user := &users.User{
-				ID: "U001",
-			}
+			user := userFixture()
 			tb.enc.EXPECT().
 				Encode(gomock.Any()).
 				Return(token.Token("token:123"), nil)
@@ -143,9 +148,7 @@ func TestValidate(t *testing.T) {
 	}, {
 		"validate",
 		func(tb *tokenService) (context.Context, token.Token) {
-			user := &users.User{
-				ID: "#U001",
-			}
+			user := userFixture()
 			tb.enc.EXPECT().
 				Decode(token.Token("token:123")).
 				Return(token.TokenID("t123"), nil)
@@ -155,9 +158,7 @@ func TestValidate(t *testing.T) {
 
 			return context.Background(), token.Token("token:123")
 		},
-		&users.User{
-			ID: "#U001",
-		},
+		userFixture(),
 		nil,
 	}}
 
@@ -209,14 +210,9 @@ func TestUpdate(t *testing.T) {
 	}, {
 		"error saving new user",
 		func(tb *tokenService) (context.Context, token.Token, *users.User) {
-			oldUser := &users.User{
-				ID:   "U001",
-				Name: "OldName",
-			}
-			newUser := &users.User{
-				ID:   "U001",
-				Name: "NewName",
-			}
+			oldUser := userFixture()
+			newUser := userFixture()
+			newUser.SetName("New", "Fancier Name")
 			tb.enc.EXPECT().
 				Decode(token.Token("#123#")).
 				Return(token.TokenID("123"), nil)
@@ -232,14 +228,9 @@ func TestUpdate(t *testing.T) {
 	}, {
 		"update",
 		func(tb *tokenService) (context.Context, token.Token, *users.User) {
-			oldUser := &users.User{
-				ID:   "U001",
-				Name: "OldName",
-			}
-			newUser := &users.User{
-				ID:   "U001",
-				Name: "NewName",
-			}
+			oldUser := userFixture()
+			newUser := userFixture()
+			newUser.SetName("New", "Fancier Name")
 			tb.enc.EXPECT().
 				Decode(token.Token("#123#")).
 				Return(token.TokenID("123"), nil)

@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"omics/pkg/security/application/auth"
-	"omics/pkg/security/domain/roles"
+	"omics/pkg/security/domain/token"
 	"omics/pkg/security/domain/users"
 	"omics/pkg/shared/models"
 )
@@ -31,16 +31,9 @@ type ChangePasswordCommand struct {
 	NewPassword string `json:"new_password"`
 }
 
-type PublicUser struct {
-	ID       models.ID `json:"id"`
-	Username string    `json:"username"`
-	Name     string    `json:"name"`
-	Lastname string    `json:"lastname"`
-}
-
 type UserService interface {
-	GetMe(ctx context.Context) (*PublicUser, error)
-	GetByID(ctx context.Context, userID models.ID) (*PublicUser, error)
+	Me(ctx context.Context) (*users.User, error)
+	GetByID(ctx context.Context, userID models.ID) (*users.User, error)
 
 	Register(ctx context.Context, cmd *RegisterCommand) error
 	Update(ctx context.Context, userID models.ID, cmd *UpdateCommand) error
@@ -48,34 +41,36 @@ type UserService interface {
 }
 
 type userService struct {
-	roleRepo          roles.RoleRepository
+	roleRepo          users.RoleRepository
 	userRepo          users.UserRepository
+	userServ          users.UserService
 	passwordHasher    users.PasswordHasher
+	passwordValidator users.PasswordValidator
 	authorizationServ auth.AuthorizationService
 }
 
-func (s *userService) GetMe(ctx context.Context) (*PublicUser, error) {
-	user, err := s.authorizationServ.GetUserFromCtx(ctx)
+func (s *userService) Me(ctx context.Context) (*users.User, error) {
+	t, err := token.FromContext(ctx)
 	if err != nil {
-		return nil, err
+		return nil, ErrUsers.Wrap(err)
 	}
 
-	return &PublicUser{
-		ID:       user.ID,
-		Username: user.Username,
-		Name:     user.Name,
-		Lastname: user.Lastname,
-	}, nil
+	user, err := s.authorizationServ.GetUserByToken(ctx, t)
+	if err != nil {
+		return nil, ErrUsers.Wrap(err)
+	}
+
+	return user, nil
 }
 
 func (s *userService) GetByID(ctx context.Context, userID models.ID) (*users.User, error) {
-	user, err := s.authorizationServ.GetUserFromCtx(ctx)
+	user, err := s.Me(ctx)
 	if err != nil {
-		return nil, err
+		return nil, ErrUsers.Wrap(err)
 	}
 
-	if !user.IsAdmin() {
-		if !(user.CanRead("users") && user.ID == userID) {
+	if !user.HasRole(users.ADMIN) {
+		if !(user.HasPermissions(users.READ, "users") && user.ID().Equals(userID)) {
 			return nil, ErrUnauthorized
 		}
 	}
@@ -89,38 +84,34 @@ func (s *userService) GetByID(ctx context.Context, userID models.ID) (*users.Use
 }
 
 func (s *userService) Register(ctx context.Context, cmd *RegisterCommand) error {
-	if user, err := s.userRepo.FindByUsernameOrEmail(ctx, cmd.Username); user != nil || err == nil {
-		if user, err := s.userRepo.FindByUsernameOrEmail(ctx, cmd.Email); user != nil || err == nil {
-			return ErrUsers.Code("register").Wrap(err)
-		}
+	if err := cmd.Validate(); err != nil {
+		return ErrUsers.Code("register").Wrap(err)
 	}
 
-	role, err := s.roleRepo.FindByCode(ctx, "user")
+	if err := s.userServ.Available(ctx, cmd.Username, cmd.Email); err != nil {
+		return ErrUsers.Code("register").Wrap(err)
+	}
+
+	role, err := s.roleRepo.FindByCode(ctx, users.USER)
 	if err != nil {
 		return ErrUsers.Code("register").Wrap(err)
 	}
 
-	permissions := make([]users.Permission, 0)
-	for _, perm := range role.Permissions {
-		permissions = append(permissions, users.Permission{
-			Permission: perm.Permission,
-			Module:     perm.Module.Code,
-		})
+	user, err := users.NewUser(
+		s.userRepo.NextID(),
+		cmd.Username,
+		cmd.Email,
+		cmd.Name,
+		cmd.Lastname,
+	)
+
+	if err != nil {
+		return err
 	}
 
-	user := &users.User{
-		ID:       s.userRepo.NextID(),
-		Username: cmd.Username,
-		Email:    cmd.Email,
-		Name:     cmd.Name,
-		Lastname: cmd.Lastname,
-		Role: users.Role{
-			Code:        role.Code,
-			Permissions: permissions,
-		},
-	}
+	user.AssignRole(role)
 
-	if err := user.SetPassword(cmd.Password, s.passwordHasher); err != nil {
+	if err := user.ChangePassword("", cmd.Password, s.passwordHasher, s.passwordValidator); err != nil {
 		return ErrUsers.Code("hash_password").Wrap(err)
 	}
 
@@ -132,13 +123,13 @@ func (s *userService) Register(ctx context.Context, cmd *RegisterCommand) error 
 }
 
 func (s *userService) Update(ctx context.Context, userID models.ID, cmd *UpdateCommand) error {
-	user, err := s.authorizationServ.GetUserFromCtx(ctx)
+	user, err := s.Me(ctx)
 	if err != nil {
-		return err
+		return ErrUsers.Wrap(err)
 	}
 
-	if !user.IsAdmin() {
-		if !(user.CanUpdate("users") && user.ID == userID) {
+	if !user.HasRole(users.ADMIN) {
+		if !(user.HasPermissions(users.UPDATE, "users") && user.ID().Equals(userID)) {
 			return ErrUnauthorized
 		}
 	}
@@ -148,8 +139,7 @@ func (s *userService) Update(ctx context.Context, userID models.ID, cmd *UpdateC
 		return ErrNotFound.Wrap(err)
 	}
 
-	user.Name = cmd.Name
-	user.Lastname = cmd.Lastname
+	user.SetName(cmd.Name, cmd.Lastname)
 
 	if err := s.userRepo.Save(ctx, user); err != nil {
 		return ErrUsers.Code("update").Wrap(err)
@@ -159,13 +149,13 @@ func (s *userService) Update(ctx context.Context, userID models.ID, cmd *UpdateC
 }
 
 func (s *userService) ChangePassword(ctx context.Context, userID models.ID, cmd *ChangePasswordCommand) error {
-	user, err := s.authorizationServ.GetUserFromCtx(ctx)
+	user, err := s.Me(ctx)
 	if err != nil {
-		return err
+		return ErrUsers.Wrap(err)
 	}
 
-	if !user.IsAdmin() {
-		if !(user.CanUpdate("users") && user.ID == userID) {
+	if !user.HasRole(users.ADMIN) {
+		if !(user.HasPermissions(users.UPDATE, "users") && user.ID().Equals(userID)) {
 			return ErrUnauthorized
 		}
 	}
@@ -175,7 +165,7 @@ func (s *userService) ChangePassword(ctx context.Context, userID models.ID, cmd 
 		return ErrNotFound.Wrap(err)
 	}
 
-	if err := user.ChangePassword(cmd.OldPassword, cmd.NewPassword, s.passwordHasher); err != nil {
+	if err := user.ChangePassword(cmd.OldPassword, cmd.NewPassword, s.passwordHasher, s.passwordValidator); err != nil {
 		return ErrUsers.Code("change_password").AddContext("password", "mismatch").Wrap(err)
 	}
 

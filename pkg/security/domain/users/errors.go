@@ -3,5 +3,6 @@ package users
 import "omics/pkg/shared/errors"
 
 var (
-	ErrUsers = errors.Internal.New().Path("security.domain.users")
+	ErrUsers      = errors.App.New().Path("security.domain.users")
+	ErrValidation = ErrUsers.Code("validation")
 )

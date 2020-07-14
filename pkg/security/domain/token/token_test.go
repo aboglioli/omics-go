@@ -26,7 +26,7 @@ func TestTokenFromContext(t *testing.T) {
 
 	for i, test := range tests {
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
-			rToken, rErr := token.TokenFromContext(test.aCtx)
+			rToken, rErr := token.FromContext(test.aCtx)
 
 			if !errors.Is(rErr, test.rErr) {
 				t.Errorf("\nExp: %s\nAct: %s", test.rErr, rErr)
