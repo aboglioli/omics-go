@@ -43,6 +43,7 @@ type UserService interface {
 	Register(ctx context.Context, cmd *RegisterCommand) error
 	Update(ctx context.Context, userID models.ID, cmd *UpdateCommand) error
 	ChangePassword(ctx context.Context, userID string, cmd *ChangePasswordCommand) error
+	Validate(ctx context.Context, userID models.ID, code string) error
 }
 
 type userService struct {
@@ -51,6 +52,7 @@ type userService struct {
 	tokenServ          token.TokenService
 	userRepo           users.UserRepository
 	userServ           users.UserService
+	validationRepo     users.ValidationRepository
 }
 
 func (s *userService) Me(ctx context.Context) (*users.User, error) {
@@ -147,6 +149,11 @@ func (s *userService) Register(ctx context.Context, cmd *RegisterCommand) error 
 		return ErrUsers.Code("register").Wrap(err)
 	}
 
+	v := users.NewValidation(user.ID())
+	if err := s.validationRepo.Save(ctx, v); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -158,6 +165,9 @@ func (s *userService) Update(ctx context.Context, userID models.ID, cmd *UpdateC
 
 	if !user.HasRole(users.ADMIN) {
 		if !(user.HasPermissions(users.UPDATE, "users") && user.ID().Equals(userID)) {
+			return ErrUnauthorized
+		}
+		if !user.IsActive() {
 			return ErrUnauthorized
 		}
 	}
@@ -186,6 +196,9 @@ func (s *userService) ChangePassword(ctx context.Context, userID models.ID, cmd 
 		if !(user.HasPermissions(users.UPDATE, "users") && user.ID().Equals(userID)) {
 			return ErrUnauthorized
 		}
+		if !user.IsActive() {
+			return ErrUnauthorized
+		}
 	}
 
 	user, err = s.userRepo.FindByID(ctx, userID)
@@ -199,6 +212,41 @@ func (s *userService) ChangePassword(ctx context.Context, userID models.ID, cmd 
 
 	if err := s.userRepo.Save(ctx, user); err != nil {
 		return ErrUsers.Code("change_password").Wrap(err)
+	}
+
+	return nil
+}
+
+func (s *userService) Validate(ctx context.Context, userID models.ID, code string) error {
+	user, err := s.userRepo.FindByID(ctx, userID)
+	if err != nil {
+		return err
+	}
+
+	if !user.HasRole(users.ADMIN) {
+		if !(user.HasPermissions(users.UPDATE, "users") && user.ID().Equals(userID)) {
+			return ErrUnauthorized
+		}
+		if !user.IsActive() {
+			return ErrUnauthorized
+		}
+	}
+
+	v, err := s.validationRepo.FindByUserID(ctx, userID)
+	if err != nil {
+		return err
+	}
+
+	if err := v.Validate(user, code); err != nil {
+		return err
+	}
+
+	if err := s.userRepo.Save(ctx, user); err != nil {
+		return err
+	}
+
+	if err := s.validationRepo.Delete(ctx, userID); err != nil {
+		return err
 	}
 
 	return nil

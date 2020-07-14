@@ -15,6 +15,8 @@ type User struct {
 	name               Fullname
 	role               Role
 	lastAuthentication time.Time
+	validated          bool
+	deletedAt          *time.Time
 }
 
 func NewUser(
@@ -55,34 +57,8 @@ func (u *User) Name() Fullname {
 	return u.name
 }
 
-func (u *User) setIdentity(username, email string) error {
-	id, err := NewIdentity(username, email)
-	if err != nil {
-		return err
-	}
-
-	u.identity = id
-	return nil
-}
-
-func (u *User) SetName(name, lastname string) error {
-	n, err := NewFullname(name, lastname)
-	if err != nil {
-		return err
-	}
-
-	u.name = n
-	return nil
-}
-
-func (u *User) AssignRole(role Role) error {
-	u.role = role
-
-	return nil
-}
-
-func (u *User) wasAuthenticated() {
-	u.lastAuthentication = time.Now()
+func (u *User) IsActive() bool {
+	return u.validated && u.deletedAt == nil
 }
 
 func (u *User) Role() Role {
@@ -105,4 +81,39 @@ func (u *User) HasPermissions(permissions string, module string) bool {
 		}
 	}
 	return false
+}
+
+func (u *User) SetName(name, lastname string) error {
+	n, err := NewFullname(name, lastname)
+	if err != nil {
+		return err
+	}
+
+	u.name = n
+	return nil
+}
+
+func (u *User) AssignRole(role Role) error {
+	u.role = role
+
+	return nil
+}
+
+// Private
+func (u *User) setIdentity(username, email string) error {
+	id, err := NewIdentity(username, email)
+	if err != nil {
+		return err
+	}
+
+	u.identity = id
+	return nil
+}
+
+func (u *User) wasAuthenticated() {
+	u.lastAuthentication = time.Now()
+}
+
+func (u *User) validate() {
+	u.validated = true
 }
