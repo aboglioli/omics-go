@@ -1,9 +1,9 @@
 package users
 
 import (
-	"strings"
 	"time"
 
+	"omics/pkg/security/domain/roles"
 	"omics/pkg/shared/models"
 )
 
@@ -13,7 +13,7 @@ type User struct {
 	identity           Identity
 	password           string
 	name               Fullname
-	role               Role
+	roleCode           string
 	lastAuthentication time.Time
 	validated          bool
 	deletedAt          *time.Time
@@ -61,26 +61,12 @@ func (u *User) IsActive() bool {
 	return u.validated && u.deletedAt == nil
 }
 
-func (u *User) Role() Role {
-	return u.role
+func (u *User) RoleCode() string {
+	return u.roleCode
 }
 
 func (u *User) HasRole(role string) bool {
-	return u.role.Code == role
-}
-
-func (u *User) HasPermissions(permissions string, module string) bool {
-	for _, rolePerm := range u.role.Permissions {
-		if rolePerm.Module == module {
-			for _, perm := range strings.Split(permissions, "") {
-				if !strings.Contains(rolePerm.Permission, perm) {
-					return false
-				}
-			}
-			return true
-		}
-	}
-	return false
+	return u.roleCode == role
 }
 
 func (u *User) SetName(name, lastname string) error {
@@ -93,9 +79,8 @@ func (u *User) SetName(name, lastname string) error {
 	return nil
 }
 
-func (u *User) AssignRole(role Role) error {
-	u.role = role
-
+func (u *User) AssignRole(role *roles.Role) error {
+	u.roleCode = role.Code()
 	return nil
 }
 

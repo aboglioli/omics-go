@@ -3,6 +3,7 @@ package users
 import (
 	"context"
 
+	"omics/pkg/security/domain/roles"
 	"omics/pkg/security/domain/token"
 	"omics/pkg/security/domain/users"
 	"omics/pkg/shared/models"
@@ -10,7 +11,8 @@ import (
 
 type UserService struct {
 	authenticationServ *users.AuthenticationService
-	roleRepo           users.RoleRepository
+	authorizationServ  *users.AuthorizationService
+	roleRepo           roles.RoleRepository
 	tokenServ          *token.TokenService
 	userRepo           users.UserRepository
 	userServ           *users.UserService
@@ -19,7 +21,8 @@ type UserService struct {
 
 func NewUserService(
 	authenticationServ *users.AuthenticationService,
-	roleRepo users.RoleRepository,
+	authorizationServ *users.AuthorizationService,
+	roleRepo roles.RoleRepository,
 	tokenServ *token.TokenService,
 	userRepo users.UserRepository,
 	userServ *users.UserService,
@@ -27,6 +30,7 @@ func NewUserService(
 ) *UserService {
 	return &UserService{
 		authenticationServ: authenticationServ,
+		authorizationServ:  authorizationServ,
 		roleRepo:           roleRepo,
 		tokenServ:          tokenServ,
 		userRepo:           userRepo,
@@ -65,8 +69,8 @@ func (s *UserService) GetByID(ctx context.Context, userID models.ID) (*users.Use
 		return nil, ErrUsers.Wrap(err)
 	}
 
-	if !user.HasRole(users.ADMIN) {
-		if !(user.HasPermissions(users.READ, "users") && user.ID().Equals(userID)) {
+	if !user.HasRole(roles.ADMIN) {
+		if !(s.authorizationServ.UserHasPermissions(ctx, roles.READ, "users") && user.ID().Equals(userID)) {
 			return nil, ErrUnauthorized
 		}
 	}
@@ -144,7 +148,7 @@ func (s *UserService) Update(ctx context.Context, userID models.ID, cmd *UpdateC
 	}
 
 	if !user.HasRole(users.ADMIN) {
-		if !(user.HasPermissions(users.UPDATE, "users") && user.ID().Equals(userID)) {
+		if !(s.authorizationServ.UserHasPermissions(roles.READ, "users") && user.ID().Equals(userID)) {
 			return ErrUnauthorized
 		}
 		if !user.IsActive() {
@@ -173,7 +177,7 @@ func (s *UserService) ChangePassword(ctx context.Context, userID models.ID, cmd 
 	}
 
 	if !user.HasRole(users.ADMIN) {
-		if !(user.HasPermissions(users.UPDATE, "users") && user.ID().Equals(userID)) {
+		if !(s.authorizationServ.UserHasPermissions(roles.READ, "users") && user.ID().Equals(userID)) {
 			return ErrUnauthorized
 		}
 		if !user.IsActive() {
@@ -204,7 +208,7 @@ func (s *UserService) Validate(ctx context.Context, userID models.ID, code strin
 	}
 
 	if !user.HasRole(users.ADMIN) {
-		if !(user.HasPermissions(users.UPDATE, "users") && user.ID().Equals(userID)) {
+		if !(s.authorizationServ.UserHasPermissions(roles.READ, "users") && user.ID().Equals(userID)) {
 			return ErrUnauthorized
 		}
 		if !user.IsActive() {

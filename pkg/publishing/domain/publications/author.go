@@ -8,3 +8,13 @@ type Author struct {
 	Name     string
 	Lastname string
 }
+
+func (a Author) toUser() User {
+	return User{
+		ID:       a.ID,
+		Username: a.Username,
+		Name:     a.Name,
+		Lastname: a.Lastname,
+		Role:     AUTHOR,
+	}
+}
