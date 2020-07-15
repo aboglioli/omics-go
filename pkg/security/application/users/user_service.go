@@ -8,54 +8,34 @@ import (
 	"omics/pkg/shared/models"
 )
 
-type LoginCommand struct {
-	UsernameOrEmail string `json:"username"`
-	Password        string `json:"password"`
-}
-
-type RegisterCommand struct {
-	Username string `json:"username"`
-	Email    string `json:"email"`
-	Password string `json:"password"`
-	Name     string `json:"name"`
-	Lastname string `json:"lastname"`
-}
-
-func (cmd *RegisterCommand) Validate() error {
-	return nil
-}
-
-type UpdateCommand struct {
-	Name     string `json:"name"`
-	Lastname string `json:"lastnaem"`
-}
-
-type ChangePasswordCommand struct {
-	OldPassword string `json:"old_password"`
-	NewPassword string `json:"new_password"`
-}
-
-type UserService interface {
-	Me(ctx context.Context) (*users.User, error)
-	GetByID(ctx context.Context, userID models.ID) (*users.User, error)
-
-	Login(ctx context.Context, cmd *LoginCommand) (token.Token, error)
-	Register(ctx context.Context, cmd *RegisterCommand) error
-	Update(ctx context.Context, userID models.ID, cmd *UpdateCommand) error
-	ChangePassword(ctx context.Context, userID string, cmd *ChangePasswordCommand) error
-	Validate(ctx context.Context, userID models.ID, code string) error
-}
-
-type userService struct {
-	authenticationServ users.AuthenticationService
+type UserService struct {
+	authenticationServ *users.AuthenticationService
 	roleRepo           users.RoleRepository
-	tokenServ          token.TokenService
+	tokenServ          *token.TokenService
 	userRepo           users.UserRepository
-	userServ           users.UserService
+	userServ           *users.UserService
 	validationRepo     users.ValidationRepository
 }
 
-func (s *userService) Me(ctx context.Context) (*users.User, error) {
+func NewUserService(
+	authenticationServ *users.AuthenticationService,
+	roleRepo users.RoleRepository,
+	tokenServ *token.TokenService,
+	userRepo users.UserRepository,
+	userServ *users.UserService,
+	validationRepo users.ValidationRepository,
+) *UserService {
+	return &UserService{
+		authenticationServ: authenticationServ,
+		roleRepo:           roleRepo,
+		tokenServ:          tokenServ,
+		userRepo:           userRepo,
+		userServ:           userServ,
+		validationRepo:     validationRepo,
+	}
+}
+
+func (s *UserService) Me(ctx context.Context) (*users.User, error) {
 	t, err := token.FromContext(ctx)
 	if err != nil {
 		return nil, ErrUsers.Wrap(err)
@@ -79,7 +59,7 @@ func (s *userService) Me(ctx context.Context) (*users.User, error) {
 	return user, nil
 }
 
-func (s *userService) GetByID(ctx context.Context, userID models.ID) (*users.User, error) {
+func (s *UserService) GetByID(ctx context.Context, userID models.ID) (*users.User, error) {
 	user, err := s.Me(ctx)
 	if err != nil {
 		return nil, ErrUsers.Wrap(err)
@@ -99,7 +79,7 @@ func (s *userService) GetByID(ctx context.Context, userID models.ID) (*users.Use
 	return user, nil
 }
 
-func (s *userService) Login(ctx context.Context, cmd *LoginCommand) (token.Token, error) {
+func (s *UserService) Login(ctx context.Context, cmd *LoginCommand) (token.Token, error) {
 	user, err := s.authenticationServ.Authenticate(ctx, cmd.UsernameOrEmail, cmd.Password)
 	if err != nil {
 		return token.Token(""), err
@@ -114,7 +94,7 @@ func (s *userService) Login(ctx context.Context, cmd *LoginCommand) (token.Token
 	return tok, nil
 }
 
-func (s *userService) Register(ctx context.Context, cmd *RegisterCommand) error {
+func (s *UserService) Register(ctx context.Context, cmd *RegisterCommand) error {
 	if err := cmd.Validate(); err != nil {
 		return ErrUsers.Code("register").Wrap(err)
 	}
@@ -157,7 +137,7 @@ func (s *userService) Register(ctx context.Context, cmd *RegisterCommand) error 
 	return nil
 }
 
-func (s *userService) Update(ctx context.Context, userID models.ID, cmd *UpdateCommand) error {
+func (s *UserService) Update(ctx context.Context, userID models.ID, cmd *UpdateCommand) error {
 	user, err := s.Me(ctx)
 	if err != nil {
 		return ErrUsers.Wrap(err)
@@ -186,7 +166,7 @@ func (s *userService) Update(ctx context.Context, userID models.ID, cmd *UpdateC
 	return nil
 }
 
-func (s *userService) ChangePassword(ctx context.Context, userID models.ID, cmd *ChangePasswordCommand) error {
+func (s *UserService) ChangePassword(ctx context.Context, userID models.ID, cmd *ChangePasswordCommand) error {
 	user, err := s.Me(ctx)
 	if err != nil {
 		return ErrUsers.Wrap(err)
@@ -217,7 +197,7 @@ func (s *userService) ChangePassword(ctx context.Context, userID models.ID, cmd 
 	return nil
 }
 
-func (s *userService) Validate(ctx context.Context, userID models.ID, code string) error {
+func (s *UserService) Validate(ctx context.Context, userID models.ID, code string) error {
 	user, err := s.userRepo.FindByID(ctx, userID)
 	if err != nil {
 		return err

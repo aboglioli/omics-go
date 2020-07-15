@@ -20,8 +20,10 @@ func (vc ValidationCode) Equals(code string) bool {
 }
 
 type Validation struct {
+	id     models.ID
 	userID models.ID
 	code   ValidationCode
+	active bool
 }
 
 func NewValidation(userID models.ID) *Validation {

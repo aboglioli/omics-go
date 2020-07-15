@@ -14,7 +14,7 @@ import (
 )
 
 type tokenService struct {
-	serv  token.TokenService
+	serv  *token.TokenService
 	enc   *mocks.MockTokenEncoder
 	cache *cache.MockCache
 }

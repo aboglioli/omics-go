@@ -1,5 +1,11 @@
 package users
 
-type PasswordValidator interface {
-	Validate(password string) error
+type PasswordValidator struct{}
+
+func NewPasswordValidator() *PasswordValidator {
+	return &PasswordValidator{}
+}
+
+func (pv *PasswordValidator) Validate(password string) error {
+	return nil
 }

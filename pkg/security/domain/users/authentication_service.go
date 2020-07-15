@@ -2,16 +2,19 @@ package users
 
 import "context"
 
-type AuthenticationService interface {
-	Authenticate(ctx context.Context, usernameOrEmail, password string) (*User, error)
-}
-
-type authenticationService struct {
+type AuthenticationService struct {
 	userRepo UserRepository
-	userServ UserService
+	userServ *UserService
 }
 
-func (s *authenticationService) Authenticate(ctx context.Context, usernameOrEmail, password string) (*User, error) {
+func NewAuthenticationService(userRepo UserRepository, userServ *UserService) *AuthenticationService {
+	return &AuthenticationService{
+		userRepo: userRepo,
+		userServ: userServ,
+	}
+}
+
+func (s *AuthenticationService) Authenticate(ctx context.Context, usernameOrEmail, password string) (*User, error) {
 	user, err := s.userRepo.FindByUsername(ctx, usernameOrEmail)
 	if user == nil || err != nil {
 		user, err = s.userRepo.FindByEmail(ctx, usernameOrEmail)

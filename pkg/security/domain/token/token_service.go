@@ -1,4 +1,3 @@
-//go:generate mockgen -source $GOFILE -destination mocks/$GOFILE -package mocks
 package token
 
 import (
@@ -8,25 +7,19 @@ import (
 	"omics/pkg/shared/cache"
 )
 
-type TokenService interface {
-	Create(ctx context.Context, d Data) (Token, error)
-	Validate(ctx context.Context, t Token) (Data, error)
-	Invalidate(ctx context.Context, t Token) error
-}
-
-type tokenService struct {
+type TokenService struct {
 	cache cache.Cache
 	enc   TokenEncoder
 }
 
-func NewTokenService(cache cache.Cache, tokenEncoder TokenEncoder) TokenService {
-	return &tokenService{
+func NewTokenService(cache cache.Cache, tokenEncoder TokenEncoder) *TokenService {
+	return &TokenService{
 		cache: cache,
 		enc:   tokenEncoder,
 	}
 }
 
-func (s *tokenService) Create(ctx context.Context, data Data) (Token, error) {
+func (s *TokenService) Create(ctx context.Context, data Data) (Token, error) {
 	tokenID := NewTokenID()
 
 	token, err := s.enc.Encode(tokenID)
@@ -41,7 +34,7 @@ func (s *tokenService) Create(ctx context.Context, data Data) (Token, error) {
 	return token, nil
 }
 
-func (s *tokenService) Validate(ctx context.Context, token Token) (Data, error) {
+func (s *TokenService) Validate(ctx context.Context, token Token) (Data, error) {
 	tokenID, err := s.enc.Decode(token)
 	if err != nil {
 		return nil, ErrToken.Code("validate").Wrap(err)
@@ -59,7 +52,7 @@ func (s *tokenService) Validate(ctx context.Context, token Token) (Data, error) 
 	return nil, ErrToken.Code("validate")
 }
 
-func (s *tokenService) Invalidate(ctx context.Context, token Token) error {
+func (s *TokenService) Invalidate(ctx context.Context, token Token) error {
 	tokenID, err := s.enc.Decode(token)
 	if err != nil {
 		return ErrToken.Code("invalidate").Wrap(err)
