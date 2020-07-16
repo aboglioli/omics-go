@@ -7,6 +7,7 @@ import (
 // Entity must have an ID
 type Entity interface {
 	ID() ID
+	Equals(entity interface{}) bool
 }
 
 // ID is an unique identifier used in each bounded context

@@ -20,7 +20,7 @@ func NewUserService(
 }
 
 func (s *UserService) Available(ctx context.Context, username, email string) error {
-	errs := ErrUsers
+	errs := Err
 	if user, err := s.userRepo.FindByUsername(ctx, username); user != nil || err == nil {
 		errs = errs.AddContext("username", "not_available")
 	}
@@ -37,8 +37,8 @@ func (s *UserService) Available(ctx context.Context, username, email string) err
 }
 
 func (s *UserService) ChangePassword(user *User, oldPassword, newPassword string) error {
-	if user.password != "" && !s.passwordHasher.Compare(user.password, oldPassword) {
-		return ErrUnauthorized
+	if user.password != "" && !s.ComparePassword(user, oldPassword) {
+		return ErrUnauthorized.AddContext("password", "mismatch")
 	}
 
 	if err := s.passwordValidator.Validate(newPassword); err != nil {
@@ -47,7 +47,7 @@ func (s *UserService) ChangePassword(user *User, oldPassword, newPassword string
 
 	hashedPassword, err := s.passwordHasher.Hash(newPassword)
 	if err != nil {
-		return ErrUsers.Wrap(err)
+		return Err.Wrap(err)
 	}
 
 	user.password = hashedPassword

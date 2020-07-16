@@ -68,11 +68,11 @@ func TestCreate(t *testing.T) {
 				Return(token.Token("##123##"), nil)
 			tb.cache.EXPECT().
 				Set(context.Background(), gomock.Any(), data).
-				Return(token.ErrToken)
+				Return(token.Err)
 			return context.Background(), data
 		},
 		"",
-		token.ErrToken,
+		token.Err,
 	}, {
 		"generate token",
 		func(tb *tokenService) (context.Context, token.Data) {

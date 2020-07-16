@@ -15,13 +15,17 @@ func TestTokenFromContext(t *testing.T) {
 		rToken token.Token
 		rErr   error
 	}{{
-		context.WithValue(context.Background(), "authToken", "#123#"),
+		context.WithValue(context.Background(), token.TOKEN_KEY, token.Token("#123#")),
 		token.Token("#123#"),
 		nil,
 	}, {
+		context.WithValue(context.Background(), token.TOKEN_KEY, "#123#"),
+		"",
+		token.Err.Code("token_from_context"),
+	}, {
 		context.WithValue(context.Background(), "token", "#123#"),
 		token.Token(""),
-		token.ErrToken.Code("token_from_context"),
+		token.Err.Code("token_from_context"),
 	}}
 
 	for i, test := range tests {

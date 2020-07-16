@@ -6,16 +6,32 @@ import (
 	"omics/pkg/security/domain/roles"
 )
 
+type Guard func(*User) bool
+
+func DefaultGuard() bool {
+	return true
+}
+
 type AuthorizationService struct {
 	userRepo UserRepository
 	roleRepo roles.RoleRepository
 }
 
-func (s *AuthenticationService) UserHasPermissions(ctx context.Context, user *User, permissions, module string) bool {
+func (s *AuthorizationService) UserHasPermissions(
+	ctx context.Context,
+	user *User,
+	permissions,
+	module string,
+	guard Guard,
+) bool {
 	role, err := s.roleRepo.FindByCode(ctx, user.RoleCode())
 	if role == nil || err != nil {
 		return false
 	}
 
-	return role.HasPermissions(permissions, module)
+	if role.Is(roles.ADMIN) {
+		return true
+	}
+
+	return role.HasPermissions(permissions, module) && guard(user)
 }

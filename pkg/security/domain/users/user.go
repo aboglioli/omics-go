@@ -49,6 +49,15 @@ func (u *User) ID() models.ID {
 	return u.id
 }
 
+func (u *User) Equals(entity interface{}) bool {
+	if user, ok := entity.(*User); ok {
+		return u.ID().Equals(user.ID())
+	} else if userID, ok := entity.(models.ID); ok {
+		return u.ID().Equals(userID)
+	}
+	return false
+}
+
 func (u *User) Identity() Identity {
 	return u.identity
 }
@@ -67,6 +76,15 @@ func (u *User) RoleCode() string {
 
 func (u *User) HasRole(role string) bool {
 	return u.roleCode == role
+}
+
+func (u *User) HasAnyRole(roles ...string) bool {
+	for _, role := range roles {
+		if u.HasRole(role) {
+			return true
+		}
+	}
+	return false
 }
 
 func (u *User) SetName(name, lastname string) error {

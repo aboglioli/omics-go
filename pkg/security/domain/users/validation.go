@@ -34,12 +34,12 @@ func NewValidation(userID models.ID) *Validation {
 }
 
 func (v *Validation) Validate(user *User, code string) error {
-	if !user.ID().Equals(v.userID) {
-		return ErrUsers
+	if !user.Equals(v.userID) {
+		return ErrValidation.AddContext("user", "not_equal")
 	}
 
 	if !v.code.Equals(code) {
-		return ErrUsers
+		return ErrValidation.AddContext("code", "invalid")
 	}
 
 	user.validate()
